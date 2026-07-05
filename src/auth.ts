@@ -28,6 +28,13 @@ type AppJWT = {
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Trust the deployment host (Vercel). Without this, NextAuth v5 refuses to
+  // run behind a proxy in production and throws "UntrustedHost", which shows
+  // up as a 500 on any page that checks the session (like /signin and /admin).
+  trustHost: true,
+  // Read the signing secret under either name. Vercel has it as AUTH_SECRET;
+  // local .env.local has it as NEXTAUTH_SECRET. Either works.
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
   pages: { signIn: "/signin" },
   providers: [
