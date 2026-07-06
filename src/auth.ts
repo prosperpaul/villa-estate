@@ -3,6 +3,18 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { getDb } from "@/lib/mongo";
 
+// Guard against a malformed NEXTAUTH_URL / AUTH_URL. If either env var holds
+// something that isn't a real http(s) address (e.g. a secret was pasted into
+// the wrong Vercel field), NextAuth calls `new URL(...)` on it and crashes
+// every auth page with "Invalid URL". Drop the bad value so NextAuth falls
+// back to auto-detecting the host from the request (works on Vercel).
+for (const key of ["NEXTAUTH_URL", "AUTH_URL"] as const) {
+  const val = process.env[key];
+  if (val && !/^https?:\/\//i.test(val)) {
+    delete process.env[key];
+  }
+}
+
 export type UserRole = "owner" | "admin" | "editor" | "member";
 
 declare module "next-auth" {
