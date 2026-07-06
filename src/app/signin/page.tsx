@@ -12,7 +12,29 @@ export default async function SignInPage({
 }: {
   searchParams: Promise<{ next?: string }>;
 }) {
-  const session = await getSession();
+  // TEMP DEBUG PROBE — remove after diagnosing the production 500.
+  let session;
+  try {
+    session = await getSession();
+  } catch (e) {
+    const err = e as Error;
+    const dbg = {
+      has_AUTH_SECRET: !!process.env.AUTH_SECRET,
+      has_NEXTAUTH_SECRET: !!process.env.NEXTAUTH_SECRET,
+      has_MONGODB_URI: !!process.env.MONGODB_URI,
+      NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? null,
+      AUTH_URL: process.env.AUTH_URL ?? null,
+      VERCEL: process.env.VERCEL ?? null,
+    };
+    return (
+      <pre style={{ padding: 24, whiteSpace: "pre-wrap", fontSize: 13 }}>
+        {"DEBUG_PROBE env:\n" +
+          JSON.stringify(dbg, null, 2) +
+          "\n\nDEBUG_PROBE error:\n" +
+          String(err?.stack ?? err?.message ?? err)}
+      </pre>
+    );
+  }
   if (session) {
     redirect("/admin");
   }
