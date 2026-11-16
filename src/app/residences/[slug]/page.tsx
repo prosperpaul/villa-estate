@@ -1,185 +1,534 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyGallery from "@/components/PropertyGallery";
 import MortgageCalc from "@/components/MortgageCalc";
 import InquiryPanel from "@/components/InquiryPanel";
+import DetailActions from "@/components/DetailActions";
+import Icon from "@/components/Icon";
+import VideoTour from "@/components/VideoTour";
+import InspectionScheduler from "@/components/InspectionScheduler";
 import { getResidence, listResidences } from "@/lib/residences";
+import { isLand, isRent, moveInBreakdown, specLine } from "@/lib/listing";
 import { getAgent } from "@/lib/agents";
 import { formatArea, formatCoords, formatPrice } from "@/lib/format";
 
-export default async function ResidencePage({ params }: { params: Promise<{ slug: string }> }) {
+type Props = { params: Promise<{ slug: string }> };
+
+// Each residence gets its own browser-tab title and search snippet
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const r = await getResidence(slug);
+  if (!r) return { title: "Residence not found, Haven Properties" };
+  return {
+    title: `${r.name}, ${r.location.town}, Haven Properties`,
+    description: r.tagline || r.abstract,
+  };
+}
+
+export default async function ResidencePage({ params }: Props) {
   const { slug } = await params;
   const r = await getResidence(slug);
   if (!r) return notFound();
+
   const agent = getAgent(r.agentSlug);
   const all = await listResidences();
-  const similar = all.filter((x) => x.slug !== r.slug).slice(0, 3);
+  // Comparables: same region first, then anything else, three in total
+  const others = all.filter((x) => x.slug !== r.slug);
+  const similar = [
+    ...others.filter((x) => x.location.region === r.location.region),
+    ...others.filter((x) => x.location.region !== r.location.region),
+  ].slice(0, 3);
+
+  const place = [r.location.town, r.location.region, r.location.country].filter(Boolean).join(", ");
+  const perSqm = r.interiorArea ? Math.round(r.price / r.interiorArea) : null;
+
+  const land = isLand(r);
+  const rent = isRent(r);
+  const moveIn = moveInBreakdown(r); // only used for rentals
+  // Spec grid: the custom ledger if the listing has one, otherwise a sensible default
+  const matrix =
+    r.ledger?.length
+      ? r.ledger.map((l) => ({ k: l.label, v: l.value, sub: l.note ?? "" }))
+      : land
+        ? [
+            { k: "Plot size", v: formatArea(r.plotArea), sub: "Surveyed land area" },
+            { k: "Tenure", v: r.tenure, sub: "Title held" },
+            { k: "Status", v: r.status, sub: r.issueNumber },
+            { k: "Use", v: "Land", sub: r.location.town },
+          ]
+        : [
+            { k: "Bedrooms", v: String(r.beds), sub: r.type },
+            { k: "Bathrooms", v: String(r.baths), sub: `${r.receptionRooms} reception rooms` },
+            { k: "Interior area", v: formatArea(r.interiorArea), sub: "Net enclosed floor" },
+            { k: "Plot", v: r.plotArea ? formatArea(r.plotArea) : "n/a", sub: "Total land holding" },
+            { k: "Tenure", v: r.tenure, sub: "Title held" },
+            { k: "Pool", v: r.pool ? "Yes" : "No", sub: r.pool ? "Private" : "None on site" },
+            { k: "Completed", v: String(r.architect.year), sub: r.architect.name },
+            { k: "Status", v: r.status, sub: r.issueNumber },
+          ];
+  const ledgerMode = !!r.ledger?.length; // ledger rows have longer text, so use a roomier grid
+
+  const osm = `https://www.openstreetmap.org/export/embed.html?bbox=${r.location.lng - 0.05},${r.location.lat - 0.03},${r.location.lng + 0.05},${r.location.lat + 0.03}&marker=${r.location.lat},${r.location.lng}&layer=mapnik`;
+
+  // Optional extras: each section renders only when filled in admin
+  const titleDocs = r.titleDocs ?? [];
+  const faqs = r.faqs ?? [];
+  const nearby = r.nearby ?? [];
+  const plans = r.paymentPlans ?? [];
+  const fees = r.fees ?? [];
+  const hasAuthority = titleDocs.some((d) => d.authority);
+  const lowestMonthly = Math.min(...plans.map((p) => p.monthly ?? Infinity));
+
+  // Number chapters by what's actually on the page, so they never skip
+  const chapterOrder = [
+    "spec",
+    titleDocs.length ? "title" : null,
+    "story",
+    r.videoUrl ? "tour" : null,
+    plans.length || fees.length ? "plans" : null,
+    land || rent ? null : "payment", // no mortgage modelling for raw land or rentals
+    faqs.length ? "faq" : null,
+    r.features?.length ? "register" : null,
+    "location",
+  ].filter(Boolean) as string[];
+  const ch = (key: string) => `Dossier chapter ${String(chapterOrder.indexOf(key) + 1).padStart(2, "0")}`;
 
   return (
     <>
       <Nav />
-      <main className="pt-[72px]">
-        {/* Breadcrumb */}
-        <div className="container-x pt-6 pb-4 text-sm text-fg-muted">
-          <Link href="/" className="hover:text-fg">Home</Link>
-          <span className="mx-2 text-fg-subtle">/</span>
-          <Link href="/residences" className="hover:text-fg">Residences</Link>
-          <span className="mx-2 text-fg-subtle">/</span>
-          <span className="text-fg">{r.name}</span>
+      <main className="pt-20">
+        {/* ============ DOSSIER META STRIP ============ */}
+        <div className="border-b border-border bg-fg text-bg">
+          <div className="container-x flex flex-wrap items-center justify-between gap-2 py-2 text-[11px] font-semibold uppercase leading-[14px] tracking-[0.08em]">
+            <span className="text-bg/80">
+              Private treaty · {r.location.region} · Ref {r.issueNumber}
+            </span>
+            {titleDocs.length > 0 && (
+              <span className="flex items-center gap-1.5 text-[#9ed1bd]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#9ed1bd]" />
+                Title documents on file
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Header */}
-        <header className="container-x flex flex-col items-start justify-between gap-6 pb-6 md:flex-row md:items-end">
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="rounded-full bg-brand-soft px-3 py-1 text-xs font-medium uppercase tracking-wider text-brand">
-                {r.status}
-              </span>
-              <span className="text-sm text-fg-muted">{r.type}</span>
+        {/* ============ BREADCRUMB ============ */}
+        <div className="border-b border-border">
+          <nav aria-label="Breadcrumb" className="container-x flex flex-wrap items-center gap-2 py-3 text-[12px] font-medium tracking-[0.06em] text-fg-muted">
+            <Link href="/" className="hover:text-brand">Home</Link>
+            <span className="text-border">/</span>
+            <Link href="/residences" className="hover:text-brand">Residences</Link>
+            <span className="text-border">/</span>
+            <Link href={`/residences?region=${encodeURIComponent(r.location.region)}`} className="hover:text-brand">
+              {r.location.region}
+            </Link>
+            <span className="text-border">/</span>
+            <span className="font-semibold text-fg">{r.name}</span>
+          </nav>
+        </div>
+
+        {/* ============ MASTHEAD ============ */}
+        <section className="container-x flex flex-col justify-between gap-5 pb-5 pt-10 lg:flex-row lg:items-end">
+          <div className="max-w-4xl">
+            {/* Max two badges, per the design system. Green "Verified" only when title docs exist */}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {titleDocs.length > 0 ? (
+                <span className="badge badge-verified">
+                  <Icon name="verified" className="h-3.5 w-3.5" />
+                  Verified title
+                </span>
+              ) : (
+                <span className="badge">{rent ? "For rent" : r.tenure}</span>
+              )}
+              <span className="badge">{r.status}</span>
+              <span className="eyebrow">{r.issueNumber}</span>
             </div>
-            <h1 className="mt-4 font-display text-4xl tracking-tight md:text-6xl">{r.name}</h1>
-            <p className="mt-2 text-lg text-fg-muted">
-              {r.location.town}, {r.location.region}, {r.location.country}
+            <h1 className="display-lg">{r.name}</h1>
+            {r.tagline && <p className="pt-1 font-display text-[22px] italic leading-[30px] text-fg-muted">{r.tagline}</p>}
+            <p className="flex flex-wrap items-center gap-1.5 pt-3 text-fg-muted">
+              <Icon name="pin" className="h-4 w-4 text-brand" />
+              {place}
+              <span className="text-border">•</span>
+              <a href="#location" className="link-editorial text-[13px]">View on map</a>
             </p>
           </div>
-          <div className="text-left md:text-right">
-            <div className="text-sm text-fg-muted">Guide price</div>
-            <div className="font-display text-4xl text-fg tnum md:text-5xl">
-              {formatPrice(r.price, r.currency)}
-            </div>
+          <DetailActions slug={r.slug} name={r.name} />
+        </section>
+
+        {/* ============ GALLERY ============ */}
+        <section className="container-x">
+          <PropertyGallery
+            images={r.gallery?.length ? r.gallery : [r.cover]}
+            name={r.name}
+            videoHref={r.videoUrl ? "#tour" : undefined}
+          />
+        </section>
+
+        {/* ============ TWO-COLUMN DOSSIER ============ */}
+        <div className="container-x grid grid-cols-1 items-start gap-10 py-[4.5rem] lg:grid-cols-12">
+          {/* ---------- LEFT: the dossier ---------- */}
+          <div className="min-w-0 space-y-[4.5rem] lg:col-span-7">
+            {/* Specifications */}
+            <section>
+              <Chapter label={ch("spec")} title={land || ledgerMode ? "Technical ledger" : "Residence specifications"} />
+              <dl className={`grid border-t border-border ${ledgerMode ? "grid-cols-1 sm:grid-cols-2 sm:gap-x-8" : "grid-cols-2 sm:grid-cols-4"}`}>
+                {matrix.map((m) => (
+                  <div key={m.k} className="border-b border-border py-4 pr-3">
+                    <dt className="eyebrow">{m.k}</dt>
+                    <dd className="pt-1 font-display text-[22px] leading-7">{m.v}</dd>
+                    {m.sub && <dd className={`text-[12px] text-fg-muted ${ledgerMode ? "leading-[18px]" : "truncate"}`}>{m.sub}</dd>}
+                  </div>
+                ))}
+              </dl>
+            </section>
+
+            {/* Title verification (optional) */}
+            {titleDocs.length > 0 && (
+              <section id="title" className="scroll-mt-24 rounded-lg border border-border bg-surface p-5 md:p-8">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                  <Chapter label={ch("title")} title="Title verification & conveyance" />
+                  <span className="badge badge-verified shrink-0">
+                    <Icon name="verified" className="h-3.5 w-3.5" />
+                    {titleDocs.length} document{titleDocs.length === 1 ? "" : "s"} checked
+                  </span>
+                </div>
+                {/* Audit ledger: a 3-column table when any row names its issuing authority */}
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[480px] border-y border-border text-left">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="eyebrow py-2 pr-4 font-semibold">Instrument</th>
+                        {hasAuthority && <th className="eyebrow py-2 pr-4 font-semibold">Issuing authority</th>}
+                        <th className="eyebrow py-2 text-right font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {titleDocs.map((d) => (
+                        <tr key={d.name} className="align-top">
+                          <td className="py-3 pr-4">
+                            <p className="font-medium">{d.name}</p>
+                            {d.detail && <p className="text-[12px] leading-[18px] text-fg-muted">{d.detail}</p>}
+                          </td>
+                          {hasAuthority && <td className="py-3 pr-4 text-[13px] leading-5 text-fg-muted">{d.authority}</td>}
+                          <td className="py-3 text-right">
+                            <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold tracking-[0.04em] text-verified">
+                              <Icon name="check" className="h-4 w-4" strokeWidth={2} />
+                              {d.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-5 flex flex-col justify-between gap-3 rounded border border-border bg-bg p-4 sm:flex-row sm:items-center">
+                  <div className="flex items-start gap-3">
+                    <Icon name="doc" className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+                    <div>
+                      <p className="text-[14px] font-semibold tracking-[0.02em]">Legal title pack</p>
+                      <p className="text-[12px] leading-[18px] text-fg-muted">
+                        Certified copies of the documents above, plus a non-encumbrance search.
+                      </p>
+                    </div>
+                  </div>
+                  <a href="#book-legal" className="btn btn-primary shrink-0 !px-5 !py-2 text-[12px]">Request legal pack</a>
+                </div>
+              </section>
+            )}
+
+            {/* Land: mandatory due-diligence advisory */}
+            {land && (
+              <aside className="flex gap-3 rounded-lg border border-brand/30 bg-brand-soft p-5">
+                <Icon name="shield" className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+                <div>
+                  <span className="eyebrow block !text-brand">Legal due-diligence advisory</span>
+                  <p className="pt-1 text-[14px] leading-6 text-fg">
+                    Always verify land documents with an accredited property lawyer before signing or sending money.
+                    Never pay purchase money into a personal account. We hold client funds in escrow until the
+                    conveyance and beacon handover are complete.
+                  </p>
+                </div>
+              </aside>
+            )}
+
+            {/* Monograph */}
+            <article>
+              <Chapter label={ch("story")} title={`Monograph: ${r.name}`} />
+              {r.abstract && <p className="pb-5 text-[18px] leading-7 text-fg">{r.abstract}</p>}
+              <div className="space-y-4 text-fg-muted">
+                {r.body?.map((p, i) => <p key={i}>{p}</p>)}
+              </div>
+              {r.architect?.name && (
+                <div className="mt-10 flex gap-4 rounded-lg border border-border bg-surface p-5">
+                  <Icon name="compass" className="h-6 w-6 shrink-0 text-brand" />
+                  <div>
+                    <h3 className="headline-sm">Architectural pedigree</h3>
+                    <p className="pt-1 text-[13px] leading-5 text-fg-muted">
+                      Designed by {r.architect.name}
+                      {r.architect.studio ? `, ${r.architect.studio}` : ""}, completed in {r.architect.year}.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </article>
+
+            {/* Video tour (optional) */}
+            {r.videoUrl && (
+              <section id="tour" className="scroll-mt-24">
+                <Chapter label={ch("tour")} title="Cinematic tour" />
+                <VideoTour url={r.videoUrl} poster={r.cover} title={r.name} />
+              </section>
+            )}
+
+            {/* Payment structures */}
+            {/* Vendor payment schedule + statutory fees (optional) */}
+            {(plans.length > 0 || fees.length > 0) && (
+              <section>
+                <Chapter label={ch("plans")} title="Payment schedule" />
+                {plans.length > 0 && (
+                  <>
+                    <p className="-mt-2 pb-5 text-fg-muted">The vendor&apos;s acquisition terms, secured by legal contract.</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[560px] border-y border-border text-left text-[13px] leading-5">
+                        <thead>
+                          <tr className="border-b border-border">
+                            {["Tenor", "Initial deposit", "Monthly", "Total", "Handover"].map((h) => (
+                              <th key={h} className="eyebrow py-2 pr-4 font-semibold">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {plans.map((p, i) => {
+                            const pct = p.total ? Math.round((p.deposit / p.total) * 1000) / 10 : 0;
+                            return (
+                              <tr key={p.tenor} className={i === 0 ? "bg-sand/40" : ""}>
+                                <td className="py-3 pr-4 font-semibold">{p.tenor}</td>
+                                <td className="py-3 pr-4 tnum">
+                                  {formatPrice(p.deposit, r.currency)} <span className="text-fg-muted">({pct}%)</span>
+                                </td>
+                                <td className="py-3 pr-4 tnum">{p.monthly ? `${formatPrice(p.monthly, r.currency)} / mo` : "n/a"}</td>
+                                <td className="py-3 pr-4 font-display text-[16px] font-medium text-brand tnum">{formatPrice(p.total, r.currency)}</td>
+                                <td className="py-3 text-fg-muted">{p.handover}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+                {fees.length > 0 && (
+                  <div className="mt-5 rounded-lg border border-border bg-surface p-5">
+                    <span className="eyebrow block pb-3">Statutory & conveyance fees</span>
+                    <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      {fees.map((f) => (
+                        <div key={f.label}>
+                          <dt className="text-[13px] font-medium">{f.label}</dt>
+                          <dd className="font-display text-[20px] text-brand tnum">{formatPrice(f.amount, r.currency)}</dd>
+                          {f.note && <dd className="text-[12px] leading-[18px] text-fg-muted">{f.note}</dd>}
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {!land && !rent && <MortgageCalc price={r.price} currency={r.currency} label={ch("payment")} />}
+
+            {/* Questions before conveyance (optional) */}
+            {faqs.length > 0 && (
+              <section>
+                <Chapter label={ch("faq")} title="Questions to ask before conveyance" />
+                <p className="-mt-2 pb-5 text-fg-muted">
+                  Our legal desk has answered the questions that matter most for this residence.
+                </p>
+                <ol className="divide-y divide-border border-y border-border">
+                  {faqs.map((f, i) => (
+                    <li key={f.q} className="grid grid-cols-[40px_1fr] gap-3 py-5">
+                      <span className="headline-sm text-brand">{String(i + 1).padStart(2, "0")}</span>
+                      <div>
+                        <h3 className="font-display text-[19px] font-medium leading-snug">{f.q}</h3>
+                        <p className="pt-1.5 text-[14px] leading-6 text-fg-muted">{f.a}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
+
+            {/* Specification register */}
+            {r.features?.length > 0 && (
+              <section>
+                <Chapter label={ch("register")} title="Specification register" />
+                <ul className="grid grid-cols-1 border-t border-border sm:grid-cols-2 sm:gap-x-10">
+                  {r.features.map((f) => (
+                    <li key={f} className="flex items-start gap-3 border-b border-border py-3">
+                      <Icon name="check" className="mt-1 h-4 w-4 shrink-0 text-brand" strokeWidth={2} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {/* Environs + map */}
+            <section id="location" className="scroll-mt-24">
+              <Chapter label={ch("location")} title={`Environs: ${r.location.town}`} />
+              {nearby.length > 0 && (
+                <ul className="mb-5 grid grid-cols-2 border-l border-t border-border sm:grid-cols-4">
+                  {nearby.map((n) => (
+                    <li key={n.place} className="border-b border-r border-border p-4">
+                      <span className="block font-display text-[26px] leading-8 text-brand tnum">
+                        {n.minutes} <span className="text-[15px]">min{n.minutes === 1 ? "" : "s"}</span>
+                      </span>
+                      <span className="eyebrow block pt-1 !text-fg-muted">{n.place}</span>
+                      {n.note && <span className="block pt-0.5 text-[12px] leading-[18px] text-fg-subtle">{n.note}</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="relative overflow-hidden rounded-lg border border-border">
+                <iframe title={`Map of ${r.name}`} loading="lazy" src={osm} className="block aspect-[16/10] w-full grayscale-[35%] sepia-[15%]" />
+                <div className="absolute left-3 top-3 max-w-[260px] rounded-lg border border-border bg-bg p-3">
+                  <span className="eyebrow block">Coordinates</span>
+                  <p className="font-display text-[17px] leading-6 tnum">{formatCoords(r.location.lat, r.location.lng)}</p>
+                  <p className="text-[12px] text-fg-muted">{place}</p>
+                </div>
+              </div>
+            </section>
           </div>
-        </header>
 
-        {/* Gallery */}
-        <div className="container-x">
-          <PropertyGallery images={r.gallery} name={r.name} />
-        </div>
-
-        {/* Body + sticky inquiry */}
-        <div className="container-x mt-16 grid grid-cols-1 gap-12 lg:grid-cols-3">
-          <article className="lg:col-span-2">
-            {/* Specs */}
-            <div className="grid grid-cols-2 gap-y-6 border-y border-border py-8 md:grid-cols-4">
-              <Spec icon="bed" label="Bedrooms" value={String(r.beds)} />
-              <Spec icon="bath" label="Bathrooms" value={String(r.baths)} />
-              <Spec icon="area" label="Interior" value={formatArea(r.interiorArea)} />
-              <Spec icon="plot" label="Plot" value={formatArea(r.plotArea)} />
-            </div>
-
-            {/* Overview */}
-            <h2 className="mt-12 font-display text-3xl tracking-tight">Overview</h2>
-            <p className="mt-3 text-lg italic text-fg-muted">{r.tagline}</p>
-            <div className="mt-6 space-y-5 text-[17px] leading-relaxed text-fg-muted">
-              {r.body.map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
-            </div>
-
-            {/* Features */}
-            <h2 className="mt-12 font-display text-3xl tracking-tight">Features of note</h2>
-            <ul className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
-              {r.features.map((f) => (
-                <li key={f} className="flex items-start gap-3 text-fg">
-                  <svg viewBox="0 0 24 24" className="mt-1 h-4 w-4 flex-shrink-0 text-brand" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M5 12l5 5L20 7" />
-                  </svg>
-                  {f}
-                </li>
-              ))}
-            </ul>
-
-            {/* Architect */}
-            <h2 className="mt-12 font-display text-3xl tracking-tight">Architect</h2>
-            <div className="mt-4 flex items-center gap-4 rounded-2xl border border-border bg-surface p-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-2 text-fg">
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.4">
-                  <path d="M3 21l9-18 9 18M7 17h10" />
-                </svg>
+          {/* ---------- RIGHT: acquisition console (sticky) ---------- */}
+          <aside className="space-y-5 lg:sticky lg:top-24 lg:col-span-5">
+            <div className="rounded-lg border border-border bg-surface p-5">
+              <div className="flex items-baseline justify-between">
+                <span className="eyebrow">{rent ? "Annual rent" : land ? "Outright acquisition" : "Guide price"}</span>
+                <span className="eyebrow">{rent ? "For rent" : r.tenure}</span>
               </div>
-              <div>
-                <div className="font-medium">{r.architect.name}</div>
-                <div className="text-sm text-fg-muted">
-                  {r.architect.studio ?? "—"} · Completed {r.architect.year}
-                </div>
-              </div>
-            </div>
-
-            {/* Location */}
-            <h2 className="mt-12 font-display text-3xl tracking-tight">Location</h2>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-border">
-              <div className="relative aspect-[16/9] bg-brand-soft">
-                <iframe
-                  title={`Map of ${r.name}`}
-                  loading="lazy"
-                  className="h-full w-full"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${r.location.lng - 0.05},${r.location.lat - 0.03},${r.location.lng + 0.05},${r.location.lat + 0.03}&marker=${r.location.lat},${r.location.lng}&layer=mapnik`}
-                />
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-4 text-sm">
-                <div className="text-fg">
-                  {r.location.town}, {r.location.country}
-                </div>
-                <div className="text-fg-muted tnum">{formatCoords(r.location.lat, r.location.lng)}</div>
+              <p className="pt-1 font-display text-[40px] font-medium leading-[44px] tracking-[-0.02em] text-brand">
+                {formatPrice(r.price, r.currency)}
+                {rent && <span className="pl-1 font-sans text-[13px] font-normal tracking-normal text-fg-muted">/ year</span>}
+                {land && r.plotArea > 0 && (
+                  <span className="pl-1 font-sans text-[13px] font-normal tracking-normal text-fg-muted">/ {formatArea(r.plotArea)}</span>
+                )}
+              </p>
+              {Number.isFinite(lowestMonthly) && (
+                <p className="pt-1 text-[13px] font-medium text-verified">
+                  Instalment plans from {formatPrice(lowestMonthly, r.currency)} / month
+                </p>
+              )}
+              <dl className="mt-4 space-y-2 border-t border-border pt-4 text-[13px] leading-5">
+                {rent ? (
+                  /* Rentals: what the tenant pays before moving in */
+                  <>
+                    {moveIn.rows.map((row) => <Row key={row.label} k={row.label} v={formatPrice(row.amount, r.currency)} />)}
+                    <div className="flex items-baseline justify-between gap-4 border-t border-border pt-2">
+                      <dt className="font-display text-[17px]">Move-in total</dt>
+                      <dd className="font-display text-[20px] font-medium text-brand tnum">{formatPrice(moveIn.total, r.currency)}</dd>
+                    </div>
+                  </>
+                ) : land ? (
+                  <>
+                    {r.plotArea > 0 && <Row k="Price per m²" v={formatPrice(Math.round(r.price / r.plotArea), r.currency)} />}
+                    <Row k="Plot" v={formatArea(r.plotArea)} />
+                    <Row k="Title" v={titleDocs[0]?.name ?? r.tenure} />
+                  </>
+                ) : (
+                  <>
+                    {perSqm && <Row k="Price per m² (interior)" v={formatPrice(perSqm, r.currency)} />}
+                    <Row k="Interior" v={formatArea(r.interiorArea)} />
+                    {r.plotArea > 0 && <Row k="Plot" v={formatArea(r.plotArea)} />}
+                    <Row k="Bedrooms / bathrooms" v={`${r.beds} / ${r.baths}`} />
+                  </>
+                )}
+              </dl>
+              <a href="#schedule" className="btn btn-primary mt-5 w-full">
+                <Icon name="calendar" className="h-4 w-4" />
+                {land ? "Book site inspection" : "Schedule inspection"}
+              </a>
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <a href="#book-offer" className="btn btn-secondary !px-4 text-[12px]">Make a price offer</a>
+                <a href="#book-legal" className="btn btn-secondary !px-4 text-[12px]">Request legal pack</a>
               </div>
             </div>
-          </article>
 
-          {/* Sticky inquiry */}
-          <aside className="lg:col-span-1">
-            <div className="lg:sticky lg:top-[88px]">
-              <InquiryPanel residenceName={r.name} residenceSlug={r.slug} agent={agent} />
-            </div>
+            <InquiryPanel residenceName={r.name} residenceSlug={r.slug} agent={agent} land={land} />
           </aside>
         </div>
 
-        {/* Mortgage */}
-        <div className="container-x mt-20">
-          <MortgageCalc price={r.price} currency={r.currency} />
-        </div>
-
-        {/* Similar */}
-        <section className="container-x mt-24">
-          <div className="flex items-end justify-between">
-            <div>
-              <span className="text-[11px] font-medium uppercase tracking-wider text-brand">
-                Also in this portfolio
-              </span>
-              <h2 className="mt-3 font-display text-3xl tracking-tight md:text-4xl">Similar residences</h2>
+        {/* ============ COMPARABLES ============ */}
+        {similar.length > 0 && (
+          <section className="border-t border-border bg-surface py-[4.5rem]">
+            <div className="container-x">
+              <div className="flex flex-col justify-between gap-3 pb-10 md:flex-row md:items-end">
+                <div>
+                  <span className="eyebrow !text-brand tracking-widest">Portfolio curation</span>
+                  <h2 className="headline-lg pt-1">Comparable residences</h2>
+                </div>
+                <Link href="/residences" className="link-editorial text-[12px] font-medium tracking-[0.06em]">
+                  Explore all residences
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 gap-10 md:grid-cols-3">
+                {similar.map((s) => <PropertyCard key={s.slug} r={s} />)}
+              </div>
             </div>
-            <Link href="/residences" className="btn btn-secondary">View all</Link>
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-10 md:grid-cols-2 lg:grid-cols-3">
-            {similar.map((s) => (
-              <PropertyCard key={s.slug} r={s} />
-            ))}
-          </div>
-        </section>
+          </section>
+        )}
       </main>
+
+      {/* Inspection booking modal, opened by any link to #schedule */}
+      <InspectionScheduler
+        land={land}
+        residence={{
+          slug: r.slug,
+          name: r.name,
+          place,
+          region: r.location.region,
+          cover: r.cover,
+          priceLabel: formatPrice(r.price, r.currency) + (rent ? " / yr" : ""),
+          chips: [
+            specLine(r).slice(0, 2).join(" · "),
+            titleDocs[0]?.name ?? r.tenure,
+            r.features?.[0],
+          ].filter(Boolean) as string[],
+        }}
+        agent={
+          agent && {
+            name: agent.name,
+            role: agent.role,
+            initials: agent.initials,
+            photo: agent.photo,
+            accreditation: agent.accreditation,
+            letter: agent.letter,
+          }
+        }
+      />
       <Footer />
     </>
   );
 }
 
-function Spec({ icon, label, value }: { icon: "bed" | "bath" | "area" | "plot"; label: string; value: string }) {
-  const paths = {
-    bed: "M3 18v-7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7M3 14h18M7 9V7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2",
-    bath: "M4 11h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-3ZM7 11V6a2 2 0 0 1 4 0v1M5 18l-1 3M19 18l1 3",
-    area: "M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6",
-    plot: "M3 12h18M12 3v18",
-  } as const;
+/* Chapter heading: "Dossier chapter 03" eyebrow + serif title */
+function Chapter({ label, title }: { label: string; title: string }) {
   return (
-    <div className="flex items-start gap-3">
-      <svg viewBox="0 0 24 24" className="mt-1 h-5 w-5 text-brand" fill="none" stroke="currentColor" strokeWidth="1.4">
-        <path d={paths[icon]} />
-      </svg>
-      <div>
-        <div className="text-xs uppercase tracking-wider text-fg-subtle">{label}</div>
-        <div className="mt-1 font-display text-xl text-fg tnum">{value}</div>
-      </div>
+    <div className="pb-5">
+      <span className="eyebrow !text-brand tracking-widest">{label}</span>
+      <h2 className="headline-md pt-1">{title}</h2>
+    </div>
+  );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="text-fg-muted">{k}</dt>
+      <dd className="font-medium tnum">{v}</dd>
     </div>
   );
 }

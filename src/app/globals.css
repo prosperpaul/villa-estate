@@ -1,29 +1,49 @@
 @import "tailwindcss";
 
+/* =========================================================
+   Warm Editorial Estate, design tokens
+   Source: src/DESIGN (3).md
+   The variable NAMES are unchanged from the old theme, so every
+   component re-skins automatically. Only the VALUES changed.
+   ========================================================= */
 :root {
-  --bg: #fafaf7;
-  --surface: #ffffff;
-  --surface-2: #f4f2ec;
-  --fg: #18181a;
-  --fg-muted: #5b5b58;
-  --fg-subtle: #8b8b87;
-  --border: #e8e5de;
-  --border-strong: #18181a;
+  /* Surfaces */
+  --bg: #f6f1e9;          /* Warm Cream, the page canvas */
+  --surface: #fbf7f1;     /* slightly lifted cream for panels */
+  --surface-2: #e9dfd0;   /* Sand, filter bars, quiet backings, hovers */
 
-  --brand: #3f5d52;
-  --brand-hover: #4f6f62;
-  --brand-soft: #eaefec;
+  /* Ink */
+  --fg: #161412;          /* Deep Ink */
+  --fg-muted: #57423b;    /* warm secondary text */
+  --fg-subtle: #8b716a;   /* metadata, placeholders */
+
+  /* Lines */
+  --border: #e2d9cc;      /* Pale Mortar hairline */
+  --border-strong: #161412;
+
+  /* Brand, Terracotta */
+  --brand: #b5471f;
+  --brand-hover: #963b19; /* deep rust */
+  --brand-soft: #b5471f14;
+
+  /* Trust, Forest Green. ONLY for Verified / title / certified */
+  --verified: #1b4d3e;
+  --verified-soft: #1b4d3e12;
+  --verified-line: #1b4d3e33;
+
+  --error: #ba1a1a;
 
   --max: 1400px;
-  --radius: 12px;
-  --radius-sm: 8px;
-  --radius-lg: 18px;
+  --radius: 4px;
+  --radius-sm: 2px;
+  --radius-lg: 8px;
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-sand: var(--surface-2);
   --color-fg: var(--fg);
   --color-fg-muted: var(--fg-muted);
   --color-fg-subtle: var(--fg-subtle);
@@ -32,14 +52,31 @@
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
   --color-brand-soft: var(--brand-soft);
+  --color-verified: var(--verified);
+  --color-verified-soft: var(--verified-soft);
+  --color-error: var(--error);
 
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  /* Architectural corners: nothing softer than 8px.
+     Overriding the larger Tailwind sizes means existing
+     rounded-2xl / rounded-3xl classes snap to the new rule. */
+  --radius-sm: 2px;
+  --radius: 4px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-2xl: 8px;
+  --radius-3xl: 8px;
+
+  /* Flat system: Tailwind shadow utilities render nothing */
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-2xl: none;
 }
 
 html {
@@ -49,112 +86,197 @@ html {
 }
 
 body {
+  background: var(--bg);
   font-family: var(--font-sans), system-ui, sans-serif;
-  font-feature-settings: "ss01", "cv11";
+  font-size: 15px;
+  line-height: 24px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+/* Custom classes live in the components layer so Tailwind
+   utilities (e.g. font-medium, px-5) can still override them. */
+@layer components {
+
+/* Every serif heading gets the editorial tracking */
+.font-display {
+  letter-spacing: -0.015em;
+  font-weight: 400;
+}
+
 ::selection {
   background: var(--brand);
-  color: var(--surface);
+  color: var(--bg);
 }
 
 /* Tabular numerals utility */
 .tnum { font-variant-numeric: tabular-nums lining-nums; }
 
-/* Container utility */
+/* Container: margins follow the spec, 1.25rem / 2.5rem / 4rem */
 .container-x {
   margin-inline: auto;
   max-width: var(--max);
-  padding-inline: 24px;
+  padding-inline: 1.25rem;
 }
 @media (min-width: 768px) {
-  .container-x { padding-inline: 48px; }
+  .container-x { padding-inline: 2.5rem; }
+}
+@media (min-width: 1200px) {
+  .container-x { padding-inline: 4rem; }
 }
 
-/* Subtle photo treatment */
+/* ---------- Typography tokens ---------- */
+.display-lg {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 38px; line-height: 44px; letter-spacing: -0.01em; font-weight: 400;
+}
+.headline-lg {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 28px; line-height: 36px; letter-spacing: -0.01em; font-weight: 400;
+}
+@media (min-width: 768px) {
+  .display-lg { font-size: 56px; line-height: 64px; letter-spacing: -0.02em; }
+  .headline-lg { font-size: 40px; line-height: 48px; letter-spacing: -0.015em; }
+}
+.headline-md {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 28px; line-height: 36px; letter-spacing: -0.01em; font-weight: 500;
+}
+.headline-sm {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 22px; line-height: 30px; font-weight: 500;
+}
+.price-display {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 32px; line-height: 36px; letter-spacing: -0.02em; font-weight: 500;
+  font-variant-numeric: lining-nums;
+}
+/* Eyebrow / metadata key, like an architectural plan legend */
+.eyebrow {
+  font-size: 11px; line-height: 14px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+/* ---------- Photos ---------- */
+/* Gentle zoom on hover is kept, but nothing lifts or casts shadow */
 .photo {
   position: relative;
   overflow: hidden;
+  border-radius: var(--radius);
 }
 .photo img {
-  transition: transform 800ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: transform 900ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .photo:hover img {
-  transform: scale(1.04);
+  transform: scale(1.03);
 }
 
-/* Quiet rise animation for sections */
+/* Quiet fade-in for sections */
 @keyframes rise {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .rise { animation: rise 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 
-/* Soft shadows */
-.shadow-soft {
-  box-shadow: 0 1px 2px rgba(24, 24, 26, 0.04), 0 6px 24px rgba(24, 24, 26, 0.06);
-}
-.shadow-soft-lg {
-  box-shadow: 0 2px 4px rgba(24, 24, 26, 0.04), 0 18px 48px rgba(24, 24, 26, 0.08);
-}
+/* Old helpers, kept so nothing breaks, but flattened per the spec:
+   "avoid diffuse drop shadows, floating elevations" */
+.shadow-soft,
+.shadow-soft-lg { box-shadow: none; }
+.lift { transition: none; }
+.lift:hover { transform: none; }
 
-/* Inputs */
+/* Hairline rule */
+.hairline { border-color: var(--border); }
+
+/* ---------- Inputs ---------- */
 .input {
   width: 100%;
-  background: transparent;
+  background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 4px;
   padding: 12px 14px;
   font: inherit;
   color: var(--fg);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition: border-color 150ms ease;
 }
 .input::placeholder { color: var(--fg-subtle); }
 .input:focus {
   outline: none;
-  border-color: var(--brand);
-  box-shadow: 0 0 0 4px var(--brand-soft);
+  border-color: var(--brand); /* no glow ring */
 }
 
-/* Buttons */
+/* Checkbox, square, 2px corners, terracotta when checked */
+input[type="checkbox"] {
+  accent-color: var(--brand);
+  border-radius: 2px;
+}
+input[type="radio"] { accent-color: var(--brand); }
+
+/* ---------- Buttons ---------- */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 22px;
-  border-radius: 999px;
+  padding: 12px 28px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
   font-size: 14px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease, border-color 180ms ease;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
   white-space: nowrap;
 }
 .btn-primary {
-  background: var(--fg);
+  background: var(--brand);
   color: var(--bg);
 }
-.btn-primary:hover { background: var(--brand); }
+.btn-primary:hover { background: var(--brand-hover); }
 .btn-secondary {
-  background: var(--surface);
+  background: transparent;
   color: var(--fg);
-  border: 1px solid var(--border);
+  border-color: var(--fg);
 }
-.btn-secondary:hover { border-color: var(--fg); }
-.btn-ghost { color: var(--fg-muted); }
+.btn-secondary:hover { background: var(--surface-2); }
+.btn-ghost { color: var(--fg-muted); padding-inline: 12px; }
 .btn-ghost:hover { color: var(--fg); }
 
-/* Hover lift for cards */
-.lift {
-  transition: transform 300ms ease, box-shadow 300ms ease;
+/* Editorial link: underline offset 4px */
+.link-editorial {
+  color: var(--brand);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
 }
-.lift:hover {
-  transform: translateY(-2px);
+.link-editorial:hover { color: var(--brand-hover); }
+
+/* ---------- Badges (max 2 per listing) ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.badge-verified {
+  background: var(--verified-soft);
+  color: var(--verified);
+  border: 1px solid var(--verified-line);
 }
 
-/* Range slider */
+/* Modal backdrop: solid ink at 65%, no blur */
+.backdrop-ink { background: rgb(22 20 18 / 0.65); }
+
+/* ---------- Range slider ---------- */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -162,33 +284,32 @@ input[type="range"] {
   height: 22px;
 }
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
-  background: var(--border);
-  border-radius: 999px;
+  height: 1px;
+  background: var(--fg);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   background: var(--brand);
-  border: 3px solid var(--surface);
+  border: 0;
   border-radius: 50%;
-  margin-top: -7px;
-  box-shadow: 0 1px 3px rgba(24, 24, 26, 0.15);
+  margin-top: -7.5px;
 }
 input[type="range"]::-moz-range-track {
-  height: 4px;
-  background: var(--border);
-  border-radius: 999px;
+  height: 1px;
+  background: var(--fg);
 }
 input[type="range"]::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   background: var(--brand);
-  border: 3px solid var(--surface);
+  border: 0;
   border-radius: 50%;
 }
+
+} /* end @layer components */
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

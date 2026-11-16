@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { agents } from "@/lib/agents";
-import type { Residence } from "@/lib/residences";
+import type { Faq, Fee, LedgerRow, Nearby, PaymentPlan, RentTerms, Residence, TitleDocument } from "@/lib/residences";
+import { RESIDENCE_TYPES } from "@/lib/listing";
+import RowsEditor from "./RowsEditor";
 import {
   createResidenceAction,
   updateResidenceAction,
@@ -18,9 +20,9 @@ type Props = {
   initial?: Partial<Residence>;
 };
 
-const types = ["Villa", "Estate", "Pavilion", "Retreat", "Compound", "Townhouse"] as const;
+const types = RESIDENCE_TYPES;
 const statuses = ["Available", "Reserved", "In Confidence", "Sold"] as const;
-const currencies = ["EUR", "USD", "GBP"] as const;
+const currencies = ["NGN", "EUR", "USD", "GBP"] as const;
 
 export default function ResidenceForm({ mode, initial }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -46,6 +48,19 @@ export default function ResidenceForm({ mode, initial }: Props) {
   const [featureDraft, setFeatureDraft] = useState("");
   const [cover, setCover] = useState(initial?.cover ?? "");
   const [gallery, setGallery] = useState<string[]>(initial?.gallery ?? []);
+  // Optional dossier extras (each shows on the public page only when filled)
+  const [videoUrl, setVideoUrl] = useState(initial?.videoUrl ?? "");
+  const [titleDocs, setTitleDocs] = useState<TitleDocument[]>(initial?.titleDocs ?? []);
+  const [faqs, setFaqs] = useState<Faq[]>(initial?.faqs ?? []);
+  const [nearby, setNearby] = useState<Nearby[]>(initial?.nearby ?? []);
+  const [ledger, setLedger] = useState<LedgerRow[]>(initial?.ledger ?? []);
+  const [paymentPlans, setPaymentPlans] = useState<PaymentPlan[]>(initial?.paymentPlans ?? []);
+  const [fees, setFees] = useState<Fee[]>(initial?.fees ?? []);
+  // Sale or rent; rent fees are only saved for rentals
+  const [listing, setListing] = useState<"sale" | "rent">(initial?.listing === "rent" ? "rent" : "sale");
+  const [rentTerms, setRentTerms] = useState<RentTerms>(
+    initial?.rent ?? { serviceCharge: 0, caution: 0, legal: 0, agency: 0, upfrontYears: 1 },
+  );
 
   const [savedToast, setSavedToast] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -84,6 +99,15 @@ export default function ResidenceForm({ mode, initial }: Props) {
       gallery,
       features,
       agentSlug,
+      videoUrl,
+      titleDocs,
+      faqs,
+      nearby,
+      ledger,
+      paymentPlans,
+      fees,
+      listing,
+      rent: listing === "rent" ? rentTerms : undefined,
     };
 
     startTransition(async () => {
@@ -235,6 +259,109 @@ export default function ResidenceForm({ mode, initial }: Props) {
           )}
         </Section>
 
+        {/* Dossier extras */}
+        <Section
+          title="Dossier extras"
+          description="Optional. Each block appears on the public page only once it has content."
+        >
+          <Field label="Video tour link" help="YouTube, Vimeo or a direct .mp4 link">
+            <input className="form-input" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://youtu.be/..." />
+          </Field>
+
+          <div className="space-y-2 border-t border-border pt-4">
+            <div className="text-xs font-medium uppercase tracking-wider text-fg-subtle">Title verification</div>
+            <RowsEditor
+              rows={titleDocs}
+              onChange={setTitleDocs}
+              empty={{ name: "", detail: "", authority: "", status: "" }}
+              addLabel="Add title document"
+              columns={[
+                { key: "name", label: "Document", placeholder: "Certificate of Occupancy" },
+                { key: "detail", label: "Reference", placeholder: "File ABJ-MT-4029" },
+                { key: "authority", label: "Issuing authority", placeholder: "Lands Registry, Alausa" },
+                { key: "status", label: "Status", placeholder: "Verified", width: "150px" },
+              ]}
+            />
+          </div>
+
+          <div className="space-y-2 border-t border-border pt-4">
+            <div className="text-xs font-medium uppercase tracking-wider text-fg-subtle">Questions before conveyance</div>
+            <RowsEditor
+              rows={faqs}
+              onChange={setFaqs}
+              empty={{ q: "", a: "" }}
+              addLabel="Add question"
+              columns={[
+                { key: "q", label: "Question", placeholder: "Is the title free from encumbrance?" },
+                { key: "a", label: "Answer", multiline: true, placeholder: "Verified. Legal search on file confirms..." },
+              ]}
+            />
+          </div>
+
+          <div className="space-y-2 border-t border-border pt-4">
+            <div className="text-xs font-medium uppercase tracking-wider text-fg-subtle">Nearby places</div>
+            <RowsEditor
+              rows={nearby as unknown as Record<string, string | number>[]}
+              onChange={(rows) => setNearby(rows as unknown as Nearby[])}
+              empty={{ place: "", minutes: "", note: "" }}
+              addLabel="Add place"
+              columns={[
+                { key: "place", label: "Place", placeholder: "Lekki Deep Sea Port" },
+                { key: "minutes", label: "Minutes", type: "number", placeholder: "15", width: "90px" },
+                { key: "note", label: "Note (optional)", placeholder: "11.2 km via coastal road" },
+              ]}
+            />
+          </div>
+          <div className="space-y-2 border-t border-border pt-4">
+            <div className="text-xs font-medium uppercase tracking-wider text-fg-subtle">Technical ledger</div>
+            <p className="text-xs text-fg-muted">Replaces the standard spec grid. Useful for land: dimensions, topography, zoning, utilities.</p>
+            <RowsEditor
+              rows={ledger}
+              onChange={setLedger}
+              empty={{ label: "", value: "", note: "" }}
+              addLabel="Add ledger row"
+              columns={[
+                { key: "label", label: "Label", placeholder: "Topography & soil", width: "180px" },
+                { key: "value", label: "Value", placeholder: "100% dry tableland" },
+                { key: "note", label: "Note (optional)", placeholder: "14m above sea level, no sandfilling" },
+              ]}
+            />
+          </div>
+
+          <div className="space-y-2 border-t border-border pt-4">
+            <div className="text-xs font-medium uppercase tracking-wider text-fg-subtle">Payment plans</div>
+            <p className="text-xs text-fg-muted">The vendor&apos;s own terms. Amounts in the listing currency.</p>
+            <RowsEditor
+              rows={paymentPlans as unknown as Record<string, string | number>[]}
+              onChange={(rows) => setPaymentPlans(rows as unknown as PaymentPlan[])}
+              empty={{ tenor: "", deposit: "", monthly: "", total: "", handover: "" }}
+              addLabel="Add payment plan"
+              columns={[
+                { key: "tenor", label: "Tenor", placeholder: "12 months", width: "110px" },
+                { key: "deposit", label: "Deposit", type: "number", placeholder: "10000000" },
+                { key: "monthly", label: "Monthly", type: "number", placeholder: "3333333" },
+                { key: "total", label: "Total", type: "number", placeholder: "50000000" },
+                { key: "handover", label: "Handover", placeholder: "Allocation at 50% paid" },
+              ]}
+            />
+          </div>
+
+          <div className="space-y-2 border-t border-border pt-4">
+            <div className="text-xs font-medium uppercase tracking-wider text-fg-subtle">Statutory & conveyance fees</div>
+            <RowsEditor
+              rows={fees as unknown as Record<string, string | number>[]}
+              onChange={(rows) => setFees(rows as unknown as Fee[])}
+              empty={{ label: "", amount: "", note: "" }}
+              addLabel="Add fee"
+              columns={[
+                { key: "label", label: "Fee", placeholder: "Registered survey fee" },
+                { key: "amount", label: "Amount", type: "number", placeholder: "1200000", width: "140px" },
+                { key: "note", label: "Note (optional)", placeholder: "Under Surveyor-General guidelines" },
+              ]}
+            />
+          </div>
+        </Section>
+
         {/* Photography */}
         <Section title="Photography" description="Drag photos here, or pick from the media library.">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -313,8 +440,14 @@ export default function ResidenceForm({ mode, initial }: Props) {
         </Section>
 
         <Section title="Pricing">
+          <Field label="Listing">
+            <select className="form-input" value={listing} onChange={(e) => setListing(e.target.value as "sale" | "rent")}>
+              <option value="sale">For sale</option>
+              <option value="rent">For rent</option>
+            </select>
+          </Field>
           <div className="grid grid-cols-[1fr_90px] gap-2">
-            <Field label="Guide price">
+            <Field label={listing === "rent" ? "Annual rent" : "Guide price"}>
               <input
                 type="number"
                 className="form-input"
@@ -329,6 +462,39 @@ export default function ResidenceForm({ mode, initial }: Props) {
             </Field>
           </div>
         </Section>
+
+        {listing === "rent" && (
+          <Section title="Rent terms" description="Shown to tenants as the move-in breakdown.">
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ["serviceCharge", "Service charge / yr"],
+                ["caution", "Caution deposit"],
+                ["legal", "Legal fee"],
+                ["agency", "Agency fee"],
+              ] as const).map(([k, label]) => (
+                <Field key={k} label={label}>
+                  <input
+                    type="number"
+                    min={0}
+                    className="form-input"
+                    value={rentTerms[k]}
+                    onChange={(e) => setRentTerms({ ...rentTerms, [k]: Math.max(0, Number(e.target.value) || 0) })}
+                  />
+                </Field>
+              ))}
+            </div>
+            <Field label="Rent due upfront">
+              <select
+                className="form-input"
+                value={rentTerms.upfrontYears}
+                onChange={(e) => setRentTerms({ ...rentTerms, upfrontYears: e.target.value === "2" ? 2 : 1 })}
+              >
+                <option value="1">1 year</option>
+                <option value="2">2 years</option>
+              </select>
+            </Field>
+          </Section>
+        )}
 
         <Section title="Agent">
           <Field label="Represented by">

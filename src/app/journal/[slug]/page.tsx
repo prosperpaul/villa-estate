@@ -20,7 +20,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   return (
     <>
       <Nav />
-      <main className="pt-[72px]">
+      <main className="pt-20">
         {/* Header */}
         <article>
           <header className="container-x pt-12 pb-10 max-w-4xl">

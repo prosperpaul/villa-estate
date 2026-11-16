@@ -1,14 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import AdminShell from "@/components/AdminShell";
-import { listResidences } from "@/lib/residences";
+import { listAllResidences } from "@/lib/residences";
 import { agents } from "@/lib/agents";
 import { formatPrice } from "@/lib/format";
 
 export const metadata = { title: "Admin — Vila Estate" };
 
 export default async function AdminPage() {
-  const residences = await listResidences();
+  const residences = await listAllResidences();
   const total = residences.reduce((s, r) => s + r.price, 0);
   const available = residences.filter((r) => r.status === "Available").length;
   const reserved = residences.filter((r) => r.status === "Reserved").length;

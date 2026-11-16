@@ -3,101 +3,126 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Residence } from "@/lib/residences";
-import { formatArea, formatPrice } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
+import { isRent, specLine } from "@/lib/listing";
 import { useFavorites } from "@/lib/useFavorites";
+import Icon from "./Icon";
 
-export default function PropertyCard({ r, priority = false }: { r: Residence; priority?: boolean }) {
+// Three layouts from the Haven design:
+//  - "standard": compact card, used in every grid (default)
+//  - "lead":     big hero card, first listing on the home page
+//  - "wide":     horizontal photo + dossier strip
+type Variant = "standard" | "lead" | "wide";
+
+export default function PropertyCard({
+  r,
+  priority = false,
+  variant = "standard",
+}: {
+  r: Residence;
+  priority?: boolean;
+  variant?: Variant;
+}) {
   const { has, toggle, hydrated } = useFavorites();
   const saved = hydrated && has(r.slug);
+  const wide = variant === "wide";
+  const lead = variant === "lead";
+
+  const place = [r.location.town, r.location.region, r.location.country].filter(Boolean).join(", ");
+  const specs = specLine(r, { pool: true });
 
   return (
     <Link
       href={`/residences/${r.slug}`}
-      className="group block lift"
+      className={`group flex h-full overflow-hidden rounded-lg border border-border bg-surface transition-colors hover:border-brand/50 ${
+        wide ? "flex-col md:flex-row" : "flex-col"
+      }`}
     >
-      <div className="photo relative aspect-[4/5] overflow-hidden rounded-2xl bg-surface-2">
+      {/* ---- Photo ---- */}
+      <div
+        className={`relative shrink-0 overflow-hidden bg-sand ${
+          wide ? "h-[260px] md:h-auto md:w-5/12" : lead ? "h-[320px] sm:h-[400px]" : "h-[240px]"
+        }`}
+      >
         {r.cover ? (
           <Image
             src={r.cover}
             alt={r.name}
             fill
-            sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw"
             priority={priority}
-            className="object-cover"
+            sizes={lead ? "(min-width:1024px) 58vw, 100vw" : wide ? "(min-width:768px) 42vw, 100vw" : "(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"}
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-xs uppercase tracking-wider text-fg-subtle">
-            No image
-          </div>
+          <div className="eyebrow absolute inset-0 flex items-center justify-center">No image</div>
         )}
 
-        <div className="absolute left-4 top-4 flex items-center gap-2">
-          <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-fg shadow-soft">
-            {r.status}
-          </span>
+        {/* Max two badges per listing, per the design system */}
+        <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+          <span className="badge !bg-surface/95">{r.status}</span>
+          <span className="badge">{r.type}</span>
         </div>
 
-        <button
-          aria-label={saved ? "Remove from saved" : "Save"}
-          aria-pressed={saved}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggle(r.slug);
-          }}
-          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-fg shadow-soft transition hover:scale-110"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className={`h-4 w-4 transition-colors ${saved ? "text-brand" : "text-fg"}`}
-            fill={saved ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth="1.6"
+        {!wide && (
+          <button
+            type="button"
+            aria-label={saved ? "Remove from saved" : "Save"}
+            aria-pressed={saved}
+            onClick={(e) => {
+              e.preventDefault(); // don't follow the card link
+              e.stopPropagation();
+              toggle(r.slug);
+            }}
+            className={`absolute right-4 top-4 flex items-center justify-center rounded-full bg-surface/90 transition-colors hover:text-brand ${
+              lead ? "h-9 w-9" : "h-8 w-8"
+            } ${saved ? "text-brand" : "text-fg"}`}
           >
-            <path d="M19 14l-7 7-7-7a4.5 4.5 0 1 1 7-5.5 4.5 4.5 0 1 1 7 5.5z" />
-          </svg>
-        </button>
+            <Icon name="heart" filled={saved} className="h-[18px] w-[18px]" />
+          </button>
+        )}
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent p-4 text-white">
-          <div className="text-[12px] uppercase tracking-wider text-white/80">
-            {r.location.town}, {r.location.country}
-          </div>
-          <div className="mt-1 font-display text-2xl leading-tight">{r.name}</div>
-        </div>
+        {lead && (
+          <span className="absolute bottom-3 left-4 rounded bg-fg/70 px-2.5 py-1 text-[11px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-bg">
+            {r.location.region} · {r.type}
+          </span>
+        )}
       </div>
 
-      <div className="mt-4 flex items-baseline justify-between gap-3">
+      {/* ---- Dossier ---- */}
+      <div className={`flex flex-grow flex-col justify-between ${lead || wide ? "gap-3 p-5" : "gap-1.5 p-3"}`}>
         <div>
-          <div className="text-[11px] font-medium uppercase tracking-wider text-fg-subtle">
-            Guide price
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="price-display text-brand">{formatPrice(r.price, r.currency)}{isRent(r) && <span className="pl-1 font-sans text-[13px] font-normal tracking-normal text-fg-muted">/ yr</span>}</span>
+            {(lead || wide) && <span className="eyebrow">{r.issueNumber}</span>}
           </div>
-          <div className="mt-0.5 font-display text-xl text-fg tnum">
-            {formatPrice(r.price, r.currency)}
-          </div>
+
+          <h3
+            className={`pt-1 text-fg transition-colors group-hover:text-brand ${
+              lead || wide ? "headline-md" : "headline-sm line-clamp-1"
+            }`}
+          >
+            {r.name}
+          </h3>
+
+          <p
+            className={`flex items-center gap-1 pt-1 text-fg-muted ${
+              lead || wide ? "" : "truncate text-[13px] leading-5"
+            }`}
+          >
+            {(lead || wide) && <Icon name="pin" className="h-4 w-4 shrink-0 text-brand" />}
+            <span className="truncate">{place}</span>
+          </p>
+
+          {wide && r.abstract && <p className="max-w-xl pt-2 text-fg-muted line-clamp-3">{r.abstract}</p>}
         </div>
-        <ul className="flex items-center gap-4 text-sm text-fg-muted">
-          <li className="flex items-center gap-1.5">
-            <Icon path="M3 18v-7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7M3 14h18M7 9V7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
-            {r.beds}
-          </li>
-          <li className="flex items-center gap-1.5">
-            <Icon path="M4 11h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-3ZM7 11V6a2 2 0 0 1 4 0v1" />
-            {r.baths}
-          </li>
-          <li className="hidden items-center gap-1.5 sm:flex">
-            <Icon path="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
-            {formatArea(r.interiorArea)}
-          </li>
-        </ul>
+
+        <div className="border-t border-border pt-1.5 text-[13px] leading-5">
+          <p className={`font-medium text-fg ${lead ? "pb-1.5" : "pb-1"}`}>{specs.join(" · ")}</p>
+          {r.tagline && (
+            <p className={`text-fg-muted ${lead ? "" : "line-clamp-1 text-xs leading-tight"}`}>{r.tagline}</p>
+          )}
+        </div>
       </div>
     </Link>
-  );
-}
-
-function Icon({ path }: { path: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4 text-fg-subtle" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d={path} />
-    </svg>
   );
 }

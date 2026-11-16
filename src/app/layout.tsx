@@ -1,24 +1,26 @@
 import type { Metadata } from "next";
-import { Inter, Fraunces } from "next/font/google";
+import { DM_Sans, Newsreader } from "next/font/google";
 import "./globals.css";
 
-const sans = Inter({
+// Body + UI text: DM Sans (design system "body" and "label" tokens)
+const sans = DM_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
   display: "swap",
 });
 
-const display = Fraunces({
+// Headings + prices: Newsreader, the editorial serif
+const display = Newsreader({
   variable: "--font-display",
   subsets: ["latin"],
   display: "swap",
-  axes: ["opsz", "SOFT"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
-  title: "Vila Estate — Architect-designed villas, for sale",
+  title: "Haven Properties, verified homes and land across Nigeria",
   description:
-    "Vila Estate is a private international real estate office representing architect-designed villas across the Mediterranean and beyond.",
+    "Find a home you can trust, anywhere in Nigeria. Physically inspected listings, verified titles and escrow-protected transactions in Lagos, Abuja, Port Harcourt and beyond.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

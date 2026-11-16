@@ -1,96 +1,196 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import type { Agent } from "@/lib/agents";
 import { submitInquiryAction } from "@/lib/inquiries";
+import Icon from "./Icon";
 
+type Kind = "Viewing" | "Price offer" | "Legal pack";
+
+// Links elsewhere on the page can pre-select a request type via the URL hash:
+//   <a href="#book-legal">  -> Legal pack
+//   <a href="#book-offer">  -> Price offer
+//   <a href="#book">        -> just scroll here
+// Viewings are booked in the InspectionScheduler modal (opened with #schedule).
+const HASH_TO_KIND: Record<string, Kind> = {
+  "#book-legal": "Legal pack",
+  "#book-offer": "Price offer",
+  "#book-viewing": "Viewing",
+};
+
+// Agent console: open the inspection scheduler, make an offer, or ask for the legal pack.
+// Offers and legal-pack requests land in the admin inbox via the existing server action.
 export default function InquiryPanel({
   residenceName,
   residenceSlug,
   agent,
+  land = false,
 }: {
   residenceName: string;
   residenceSlug: string;
   agent?: Agent;
+  land?: boolean; // land plots use "site inspection" wording
 }) {
   const [state, action, pending] = useActionState(submitInquiryAction, null);
   const sent = state?.ok === true;
 
+  const [kind, setKind] = useState<Kind>("Viewing");
+  const [message, setMessage] = useState("");
+
+  // React to #book-legal / #book-offer links
+  useEffect(() => {
+    const onHash = () => {
+      const k = HASH_TO_KIND[window.location.hash];
+      if (!k) return;
+      setKind(k);
+      document.getElementById("book")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    onHash();
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  const note = `[${kind}] ${message}`.trim();
+  const firstName = agent?.name.split(" ")[0];
+  const phoneDigits = agent?.phone.replace(/\D/g, "");
+
   return (
-    <div className="rounded-2xl border border-border bg-surface p-6 shadow-soft">
+    <div id="book" className="scroll-mt-24 rounded-lg border border-border bg-surface">
       {agent && (
-        <div className="flex items-center gap-3 border-b border-border pb-5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand font-medium">
+        <div className="flex items-center gap-3 border-b border-border p-5">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border bg-sand font-display text-xl">
             {agent.initials}
-          </div>
+          </span>
           <div className="min-w-0">
-            <div className="text-xs uppercase tracking-wider text-fg-subtle">Represented by</div>
-            <Link href={`/agents/${agent.slug}`} className="font-display text-lg text-fg hover:text-brand">
+            <Link href={`/agents/${agent.slug}`} className="headline-sm block leading-tight hover:text-brand">
               {agent.name}
             </Link>
-            <div className="text-xs text-fg-muted">{agent.basedIn}</div>
+            <span className="eyebrow block pt-0.5">{agent.role} · {agent.basedIn}</span>
+            <span className="text-[12px] text-fg-muted">Speaks {agent.languages.join(", ")}</span>
           </div>
         </div>
       )}
 
-      {sent ? (
-        <div className="mt-5 rounded-xl border border-brand-soft bg-brand-soft px-4 py-6 text-center">
-          <div className="font-display text-lg text-fg">Thank you, we have your note.</div>
-          <p className="mt-1 text-sm text-fg-muted">
-            We&apos;ll be in touch about {residenceName} within two working days.
-          </p>
-        </div>
-      ) : (
-        <form action={action} className="mt-5 space-y-3">
-          <input type="hidden" name="residenceSlug" value={residenceSlug} />
-          <input name="name" className="input" placeholder="Your name" required />
-          <input name="email" className="input" type="email" placeholder="your@email.com" required />
-          <input name="phone" className="input" placeholder="Phone (optional)" />
-          <textarea
-            name="note"
-            className="input min-h-[100px]"
-            placeholder={`I'd like to know more about ${residenceName}…`}
-            rows={3}
-          />
+      <div className="p-5">
+        {/* Request type */}
+        <fieldset>
+          <legend className="eyebrow mb-2">I would like to</legend>
+          <div className="grid grid-cols-3 gap-1 rounded border border-border bg-bg p-1">
+            {(["Viewing", "Price offer", "Legal pack"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={kind === k}
+                onClick={() => setKind(k)}
+                className={`rounded-sm py-1.5 text-[12px] font-medium tracking-[0.04em] transition-colors ${
+                  kind === k ? "bg-fg text-bg" : "text-fg-muted hover:text-fg"
+                }`}
+              >
+                {k === "Viewing" ? (land ? "Inspect" : "View") : k === "Price offer" ? "Make offer" : "Legal pack"}
+              </button>
+            ))}
+          </div>
+        </fieldset>
 
-          {state?.error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {state.error}
+        {kind === "Viewing" ? (
+          /* Viewings open the full scheduler */
+          <div className="mt-4 rounded border border-border bg-bg p-4">
+            <p className="text-[14px] font-semibold tracking-[0.02em]">
+              {land ? "Book a site inspection" : "Book a private viewing"}
+            </p>
+            <ul className="mt-2 space-y-1 text-[13px] leading-5 text-fg-muted">
+              <li className="flex gap-2"><Icon name="pin" className="mt-0.5 h-4 w-4 shrink-0 text-brand" />Accompanied on-site visit, about 60 minutes</li>
+              <li className="flex gap-2"><Icon name="video" className="mt-0.5 h-4 w-4 shrink-0 text-brand" />Or a live video walkthrough from abroad</li>
+            </ul>
+            <a href="#schedule" className="btn btn-primary mt-4 w-full">
+              <Icon name="calendar" className="h-4 w-4" />
+              Choose a date & time
+            </a>
+          </div>
+        ) : sent ? (
+          <div className="mt-4 rounded border border-verified/30 bg-verified-soft px-4 py-6 text-center">
+            <Icon name="check" className="mx-auto h-6 w-6 text-verified" strokeWidth={2} />
+            <p className="headline-sm pt-2">Request received.</p>
+            <p className="pt-1 text-[13px] leading-5 text-fg-muted">
+              {firstName ?? "We"} will reply about {residenceName} within two working days.
+            </p>
+          </div>
+        ) : (
+          <form action={action} className="mt-4 space-y-4">
+            <input type="hidden" name="residenceSlug" value={residenceSlug} />
+            <input type="hidden" name="note" value={note} />
+
+            <p className="rounded border border-border bg-bg p-3 text-[13px] leading-5 text-fg-muted">
+              {kind === "Price offer"
+                ? `Put your offer and any conditions below. ${firstName ?? "The agent"} will present it to the vendor and come back to you.`
+                : "We will send certified copies of the title documents and the non-encumbrance search to your email."}
+            </p>
+
+            <div className="space-y-2">
+              <Field label="Your name"><input name="name" className="input" autoComplete="name" required /></Field>
+              <Field label="Email"><input name="email" type="email" className="input" autoComplete="email" required /></Field>
+              <Field label="Phone (optional)"><input name="phone" type="tel" className="input" autoComplete="tel" /></Field>
+              <Field label={kind === "Price offer" ? "Your offer & conditions" : "Message (optional)"}>
+                <textarea
+                  className="input min-h-[80px]"
+                  rows={3}
+                  value={message}
+                  required={kind === "Price offer"}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder={kind === "Price offer" ? "e.g. Offer of ... subject to survey" : `I'd like the title pack for ${residenceName}.`}
+                />
+              </Field>
             </div>
-          )}
 
-          <button type="submit" disabled={pending} className="btn btn-primary w-full disabled:opacity-50">
-            {pending ? "Sending…" : "Request a viewing"}
-          </button>
-        </form>
-      )}
+            {state?.error && (
+              <p role="alert" className="rounded border border-error/30 bg-error/5 px-3 py-2 text-[13px] text-error">
+                {state.error}
+              </p>
+            )}
 
-      <div className="mt-5 flex items-center gap-3 border-t border-border pt-5 text-sm text-fg-muted">
-        <svg viewBox="0 0 24 24" className="h-4 w-4 text-brand" fill="none" stroke="currentColor" strokeWidth="1.6">
-          <path d="M3 5h18M3 12h18M3 19h18" />
-        </svg>
-        Average response in 2 working days
-      </div>
+            <button type="submit" disabled={pending} className="btn btn-primary w-full disabled:opacity-50">
+              <Icon name={kind === "Legal pack" ? "doc" : "mail"} className="h-4 w-4" />
+              {pending ? "Sending…" : kind === "Price offer" ? "Send price offer" : "Request legal pack"}
+            </button>
+          </form>
+        )}
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
         {agent && (
-          <>
-            <a href={`tel:${agent.phone.replace(/\s/g, "")}`} className="btn btn-secondary text-sm">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
-              Call
+          <div className="mt-3 space-y-2">
+            <a href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-full !py-2.5 text-[12px]">
+              <Icon name="chat" className="h-4 w-4 text-verified" />
+              WhatsApp {firstName} directly
             </a>
-            <a href={`mailto:${agent.email}`} className="btn btn-secondary text-sm">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M4 4h16v16H4z M4 4l8 7 8-7" />
-              </svg>
-              Email
-            </a>
-          </>
+            <div className="grid grid-cols-2 gap-2">
+              <a href={`tel:${agent.phone.replace(/\s/g, "")}`} className="btn btn-ghost !justify-center rounded-full border border-border !py-2 text-[12px]">
+                <Icon name="phone" className="h-4 w-4" /> Call
+              </a>
+              <a href={`mailto:${agent.email}`} className="btn btn-ghost !justify-center rounded-full border border-border !py-2 text-[12px]">
+                <Icon name="mail" className="h-4 w-4" /> Email
+              </a>
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Anti-fraud notice */}
+      <div className="flex gap-3 border-t border-border bg-sand/50 p-4">
+        <Icon name="shield" className="mt-0.5 h-5 w-5 shrink-0 text-verified" />
+        <p className="text-[12px] leading-[18px] text-fg-muted">
+          <span className="eyebrow block !text-verified">Haven escrow & anti-fraud</span>
+          No payment is ever due before a physical inspection. Never send money to a personal account.
+        </p>
+      </div>
     </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="eyebrow mb-1 block">{label}</span>
+      {children}
+    </label>
   );
 }

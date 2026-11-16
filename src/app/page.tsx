@@ -4,367 +4,530 @@ import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import SearchBar from "@/components/SearchBar";
 import PropertyCard from "@/components/PropertyCard";
-import AgentCardCompact from "@/components/AgentCardCompact";
+import Icon from "@/components/Icon";
 import { listResidences } from "@/lib/residences";
 import { agents } from "@/lib/agents";
-import { articles } from "@/lib/articles";
 
-const locationGrid = [
-  { name: "Côte d'Azur", image: "/istockphoto-1.jpg", count: 3 },
-  { name: "Mallorca", image: "/istockphoto-7.jpg", count: 1 },
-  { name: "Lake Como", image: "/istockphoto-8.jpg", count: 2 },
-  { name: "Marrakech", image: "/istockphoto-4.jpg", count: 1 },
-  { name: "County Kerry", image: "/istockphoto-5.jpg", count: 1 },
+/* ------------------------------------------------------------------
+   Editorial content. These sections don't come from the database yet,
+   so their copy lives here. Edit freely.
+   ------------------------------------------------------------------ */
+
+const corridors = [
+  "Lekki", "Ikoyi", "Victoria Island", "Ajah", "Ikeja GRA",
+  "Yaba", "Maitama", "Gwarinpa", "Wuse II", "GRA Port Harcourt",
+];
+
+const standards = [
+  {
+    title: "Verified listings only",
+    tag: "Physical ground audit",
+    body: "Every property is physically inspected on the ground and document-checked at the relevant state registry, Lagos Lands Bureau, FCDA Abuja or the Rivers State Ministry of Physical Planning, before it is published.",
+  },
+  {
+    title: "Honest, uninflated pricing",
+    tag: "No hidden markups",
+    body: "No inflated markups, no ghost caution fees, and clear disclosure of service charges and statutory tenancy costs upfront. You pay what the owner or developer asks, nothing more.",
+  },
+  {
+    title: "Escorted inspection support",
+    tag: "On-ground officers",
+    body: "Licensed Haven officers escort your in-person viewings, or host live video walkthroughs for diaspora clients in the UK, US and Canada.",
+  },
+  {
+    title: "Scam protection & escrow",
+    tag: "Custodial banking",
+    body: "Your deposit and rent stay in escrow until the tenancy agreement is stamped, covenants are verified, and the keys are in your hands.",
+  },
+];
+
+const cities = [
+  { name: "Lagos", tag: "Centre of commerce", image: "/haven/city-lagos.jpg" },
+  { name: "Abuja", tag: "Federal capital", image: "/haven/city-abuja.jpg" },
+  { name: "Port Harcourt", tag: "Rivers State", image: "/haven/city-port-harcourt.jpg" },
+  { name: "Ibadan", tag: "Oyo heritage", image: "/haven/city-ibadan.jpg" },
+  { name: "Enugu", tag: "Coal City", image: "/haven/city-enugu.jpg" },
+  { name: "Kano", tag: "Northern commerce", image: "/haven/city-kano.jpg" },
+];
+
+const plots = [
+  {
+    name: "Pan-Atlantic Corridor, Ibeju-Lekki",
+    price: "₦35,000,000",
+    size: "600 sqm",
+    badge: "Dry land · Surveyed",
+    image: "/haven/land-ibeju-lekki.jpg",
+    rows: [
+      ["Title", "Certificate of Occupancy"],
+      ["Payment", "6 months, 0% interest"],
+      ["Topography", "Dry, ready to build"],
+    ],
+    area: "Lekki Free Zone axis",
+  },
+  {
+    name: "Idu Industrial Layout, Abuja",
+    price: "₦85,000,000",
+    size: "900 sqm",
+    badge: "Commercial corner plot",
+    image: "/haven/land-idu-abuja.jpg",
+    rows: [
+      ["Title", "FCDA Allocation & R of O"],
+      ["Payment", "Outright, 5% discount"],
+      ["Zoning", "Commercial / light industrial"],
+    ],
+    area: "Abuja FCT central hub",
+  },
+  {
+    name: "Moniya, Iseyin Expressway, Ibadan",
+    price: "₦16,000,000",
+    size: "450 sqm",
+    badge: "High growth area",
+    image: "/haven/land-moniya-ibadan.jpg",
+    rows: [
+      ["Title", "Registered Survey & Gov. Consent"],
+      ["Payment", "12-month flexible plan"],
+      ["Access", "Direct expressway link"],
+    ],
+    area: "Near Ibadan train terminal",
+  },
 ];
 
 const testimonials = [
   {
-    quote:
-      "They understood our brief in fifteen minutes, found the house in four months, and have looked after it ever since. The single best advisory relationship we've had.",
-    name: "C. Vandenberg",
-    role: "Owner, Villa Aurelia",
+    quote: "Haven took all the heartbreak out of renting in Lagos. We found our Lekki 3-bed in three days, with complete peace of mind.",
+    name: "Engr. Tunde Adeleke",
+    role: "Tenant, Lekki Phase 1, Lagos",
   },
   {
-    quote:
-      "What stood out was the quality of the no. Vila Estate told us, kindly, that two houses we loved weren't right. They were correct both times.",
-    name: "Henrik A.",
-    role: "Founder, private investor",
+    quote: "Relocating from London to Abuja was stress-free. Haven did live video walkthroughs of our Maitama duplex and handled the legal paperwork cleanly.",
+    name: "Dr. Amina Yusuf-Bello",
+    role: "Diaspora buyer, Maitama, Abuja",
   },
   {
-    quote:
-      "The acquisition was meticulous. The year that followed — staffing, restoration, gardener — was the part that surprised us.",
-    name: "Anaïs L.",
-    role: "Collector",
+    quote: "Sold two commercial plots in Port Harcourt within three weeks, without a single ghost buyer. Serious, vetted buyers only.",
+    name: "Barr. Kenneth Nwachukwu",
+    role: "Land owner, Trans-Amadi, Rivers State",
   },
 ];
 
+const metrics = [
+  { n: "7.4 days", label: "Average lease execution time" },
+  { n: "<0.2%", label: "Tenant default rate across portfolio" },
+  { n: "100%", label: "Escrowed upfront rental security" },
+];
+
+// Lays out the 6 featured listings like the design:
+// row 1 = 7 + 5 columns, row 2 = 4 + 4 + 4, row 3 = one full-width strip.
+const featuredLayout = [
+  { span: "lg:col-span-7", variant: "lead" },
+  { span: "lg:col-span-5", variant: "standard" },
+  { span: "lg:col-span-4", variant: "standard" },
+  { span: "lg:col-span-4", variant: "standard" },
+  { span: "lg:col-span-4", variant: "standard" },
+  { span: "lg:col-span-12", variant: "wide" },
+] as const;
+
 export default async function Home() {
   const residences = await listResidences();
-  const featured = residences.slice(0, 6);
+  const featured = residences.slice(0, featuredLayout.length);
+  // Unique regions from the real data, for the search dropdown
+  const regions = [...new Set(residences.map((r) => r.location.region).filter(Boolean))];
 
   return (
     <>
-      <Nav transparent />
+      <Nav />
 
-      {/* HERO */}
-      <section className="relative h-[90svh] min-h-[560px] w-full overflow-hidden md:h-[100svh] md:min-h-[680px]">
-        <Image
-          src="/istockphoto-1.jpg"
-          alt="Modern villa at twilight with infinity pool"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
+      <main className="pt-20">
+        {/* Adire accent line: terracotta and forest diagonals */}
+        <div
+          aria-hidden
+          className="h-1.5 w-full opacity-60"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(45deg, #b5471f 0 3px, transparent 3px 12px), repeating-linear-gradient(-45deg, #1b4d3e 0 3px, transparent 3px 12px)",
+          }}
         />
-        {/* Lighter overlay — only darkens the bottom so the headline reads */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
 
-        <div className="container-x relative z-10 flex h-full flex-col justify-center pt-24 pb-10 text-white md:pt-20 md:pb-0">
-          <div className="max-w-3xl rise">
-            {/* Badge hidden on mobile — it visually fights the logo */}
-            <span className="hidden md:inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs uppercase tracking-wider">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" />
-              Spring 2026
-            </span>
-            <h1 className="font-display text-3xl font-normal leading-[1.1] tracking-tight md:mt-6 md:text-6xl md:leading-[1.05] lg:text-7xl">
-              Architect-designed villas,{" "}
-              <span className="italic font-light text-white/95">for a quieter life.</span>
-            </h1>
-            {/* Subhead hidden on mobile — headline says enough on its own */}
-            <p className="mt-4 hidden max-w-xl text-base leading-relaxed text-white/85 md:mt-6 md:block md:text-lg">
-              The Mediterranean&apos;s most considered homes. Quietly sourced, carefully kept.
-            </p>
-          </div>
-
-          <div className="mt-8 max-w-4xl md:mt-12">
-            <SearchBar />
-          </div>
-        </div>
-      </section>
-
-      {/* STATS strip — moved out of the hero so the image gets to breathe */}
-      <section className="border-b border-border bg-surface">
-        <div className="container-x grid grid-cols-2 gap-y-6 py-8 md:grid-cols-4 md:py-10">
-          <Stat n="8" label="Active residences" />
-          <Stat n="€135M" label="Curated portfolio" />
-          <Stat n="18" label="Countries served" />
-          <Stat n="12 yrs" label="Quietly working" />
-        </div>
-      </section>
-
-      {/* TRUST STRIP */}
-      <section className="border-b border-border bg-surface">
-        <div className="container-x flex flex-wrap items-center justify-between gap-x-12 gap-y-5 py-8">
-          <p className="text-sm text-fg-muted">As featured in</p>
-          {["Architectural Digest", "Wallpaper*", "Monocle", "Financial Times", "The Modern House"].map((p) => (
-            <span key={p} className="font-display text-lg italic text-fg/70">
-              {p}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      {/* FEATURED */}
-      <section className="container-x py-24">
-        <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
-          <div className="max-w-2xl">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-brand">
-              Featured residences
-            </span>
-            <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-              A small selection,
-              <br />
-              from this season&apos;s issue.
-            </h2>
-          </div>
-          <Link
-            href="/residences"
-            className="btn btn-secondary self-start md:self-auto"
-          >
-            View all 8 residences
-            <span aria-hidden>→</span>
-          </Link>
-        </div>
-
-        <div className="mt-12 grid grid-cols-1 gap-x-6 gap-y-10 md:grid-cols-2 lg:grid-cols-3">
-          {featured.map((r, i) => (
-            <PropertyCard key={r.slug} r={r} priority={i < 3} />
-          ))}
-        </div>
-      </section>
-
-      {/* ABOUT split */}
-      <section id="about" className="bg-surface-2">
-        <div className="container-x grid grid-cols-1 gap-12 py-24 lg:grid-cols-12 lg:gap-20">
-          <div className="lg:col-span-5">
-            <div className="photo relative aspect-[4/5] overflow-hidden rounded-3xl">
-              <Image
-                src="/photo-13.avif"
-                alt="A considered interior"
-                fill
-                sizes="(min-width:1024px) 40vw, 100vw"
-                className="object-cover"
-              />
-            </div>
-          </div>
-          <div className="lg:col-span-7 flex flex-col justify-center">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-brand">
-              Our practice
-            </span>
-            <h2 className="mt-3 font-display text-4xl leading-tight tracking-tight md:text-5xl">
-              The right house, found
-              <br />
-              <span className="italic">on your behalf.</span>
-            </h2>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-fg-muted">
-              Vila Estate was founded in 2013 to represent a small number of architect-designed
-              homes with the quietness their owners — and their architecture — deserve. We
-              publish a new portfolio each quarter, never longer than ten residences. Each is
-              walked, vetted and personally introduced by a partner of the practice.
-            </p>
-
-            <div className="mt-10 grid grid-cols-2 gap-8 sm:grid-cols-3">
-              <Pillar n="01" title="Private acquisition" body="Off-market sourcing through a discreet international network." />
-              <Pillar n="02" title="Architectural counsel" body="Every residence vetted on architecture, light, stewardship." />
-              <Pillar n="03" title="Concierge & care" body="Year-round stewardship — staffing, openings, restoration." />
-            </div>
-
-            <div className="mt-10 flex flex-wrap gap-3">
-              <Link href="/agents" className="btn btn-primary">Meet the team</Link>
-              <Link href="/journal" className="btn btn-secondary">Read the journal</Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* LOCATIONS */}
-      <section className="container-x py-24">
-        <div className="max-w-2xl">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-brand">
-            Where we work
-          </span>
-          <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-            Quietly active in
-            <br />a handful of places.
-          </h2>
-        </div>
-
-        <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-          {locationGrid.map((l) => (
-            <Link
-              key={l.name}
-              href="/residences"
-              className="group photo relative block aspect-[3/4] overflow-hidden rounded-2xl"
-            >
-              <Image
-                src={l.image}
-                alt={l.name}
-                fill
-                sizes="(min-width:1024px) 20vw, (min-width:768px) 33vw, 50vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                <div className="font-display text-xl">{l.name}</div>
-                <div className="text-sm text-white/80">{l.count} residence{l.count !== 1 ? "s" : ""}</div>
+        {/* ============ 1. HERO ============ */}
+        <section className="border-b border-border pb-10 pt-10 lg:pt-[4.5rem]">
+          <div className="container-x">
+            <div className="flex flex-wrap items-center justify-between gap-1.5 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-verified" />
+                <span className="eyebrow tracking-widest">
+                  Verified Nigerian realty · Lagos · Abuja · Port Harcourt · Ibadan
+                </span>
               </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+              <div className="hidden items-center gap-1.5 text-[12px] tracking-[0.06em] text-fg-muted sm:flex">
+                <Icon name="shield" className="h-4 w-4 text-verified" />
+                Escrow protected transactions
+              </div>
+            </div>
 
-      {/* AGENTS preview */}
-      <section className="bg-surface-2">
-        <div className="container-x py-24">
-          <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
-            <div className="max-w-2xl">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-brand">
-                Our agents
+            <div className="max-w-4xl pt-1.5">
+              <h1 className="display-lg lg:!text-[68px] lg:!leading-[74px]">
+                Find a home you can trust, anywhere in Nigeria.
+              </h1>
+              <p className="max-w-2xl pt-3 text-[18px] leading-7 text-fg-muted">
+                The verified property journal for discerning buyers and renters. Legal certainty,
+                no ghost caution fees, and physically vetted deeds across West Africa&apos;s most
+                sought-after addresses.
+              </p>
+            </div>
+
+            <div className="mt-5">
+              <SearchBar regions={regions} listingCount={residences.length} />
+            </div>
+
+            <div className="group relative mt-5 h-[380px] overflow-hidden rounded-lg border border-border sm:h-[480px] lg:h-[560px]">
+              <Image
+                src="/haven/hero.jpg"
+                alt="Modern tropical villa with timber louvres and royal palms, Banana Island, Ikoyi"
+                fill
+                priority
+                sizes="(min-width:1400px) 1272px, 100vw"
+                className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.01]"
+              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-fg/70 via-transparent to-transparent" />
+              <div className="absolute inset-x-4 bottom-4 flex flex-col justify-between gap-1.5 sm:inset-x-6 sm:bottom-6 sm:flex-row sm:items-end">
+                <div className="max-w-lg rounded-lg border border-border bg-bg p-3 sm:px-4 sm:py-2.5">
+                  <span className="eyebrow !text-brand">Featured commission</span>
+                  <p className="headline-sm pt-0.5 leading-tight">Private Residence, Banana Island, Ikoyi</p>
+                  <p className="text-[13px] leading-5 text-fg-muted">
+                    Direct C of O with Governor&apos;s Consent
+                  </p>
+                </div>
+                <div className="hidden items-center gap-2 rounded-full border border-border bg-bg px-4 py-2 text-[12px] font-medium tracking-[0.06em] md:flex">
+                  <span className="h-2 w-2 rounded-full bg-verified" />
+                  Available for private acquisition
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ============ 2. KEY CORRIDORS ============ */}
+        <section className="border-b border-border bg-surface py-3">
+          <div className="container-x flex flex-col justify-between gap-1.5 md:flex-row md:items-center">
+            <span className="eyebrow shrink-0 tracking-widest">Key corridors</span>
+            <div className="flex items-center divide-x divide-border overflow-x-auto text-[13px] font-medium text-fg-muted [scrollbar-width:none]">
+              {corridors.map((c) => (
+                <Link
+                  key={c}
+                  href={`/residences?region=${encodeURIComponent(c)}`}
+                  className="shrink-0 px-3 py-1 transition-colors hover:text-brand"
+                >
+                  {c}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ============ 3. FEATURED RESIDENCES (real data) ============ */}
+        <section className="border-b border-border py-[4.5rem]">
+          <div className="container-x">
+            <SectionHead
+              eyebrow="Curated real estate"
+              title="Handpicked residences"
+              body="Every home in this dossier carries a validated survey, clean registry records and our direct oversight."
+              aside={
+                <Link href="/residences" className="link-editorial text-[12px] font-medium tracking-[0.06em]">
+                  View all {residences.length} residences
+                </Link>
+              }
+              divided
+            />
+
+            {featured.length === 0 ? (
+              <p className="pt-10 text-fg-muted">No residences published yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-10 pt-10 lg:grid-cols-12">
+                {featured.map((r, i) => (
+                  <div key={r.slug} className={featuredLayout[i].span}>
+                    <PropertyCard r={r} variant={featuredLayout[i].variant} priority={i < 2} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ============ 4. THE HAVEN STANDARD ============ */}
+        <section className="border-b border-border bg-surface py-[4.5rem]">
+          <div className="container-x">
+            <div className="mb-10 max-w-2xl">
+              <span className="eyebrow !text-brand tracking-widest">Our governance</span>
+              <h2 className="headline-lg pt-1">The Haven Standard</h2>
+              <p className="pt-2 text-[18px] leading-7 text-fg-muted">
+                Property in Nigeria should bring pride, not anxiety. Here is how we protect buyers,
+                renters and the diaspora.
+              </p>
+            </div>
+
+            <ol className="divide-y divide-border border-y border-border">
+              {standards.map((s, i) => (
+                <li key={s.title} className="group grid grid-cols-1 items-baseline gap-3 py-5 md:grid-cols-12">
+                  <div className="headline-md text-brand md:col-span-1">{String(i + 1).padStart(2, "0")}</div>
+                  <div className="md:col-span-4">
+                    <h3 className="headline-sm transition-colors group-hover:text-brand">{s.title}</h3>
+                    <span className="eyebrow">{s.tag}</span>
+                  </div>
+                  <p className="leading-relaxed text-fg-muted md:col-span-7">{s.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* ============ 5. BROWSE BY CITY ============ */}
+        <section className="border-b border-border py-[4.5rem]">
+          <div className="container-x">
+            <SectionHead
+              eyebrow="Where we work"
+              title="Curated markets across Nigeria"
+              aside={
+                <Link href="/residences" className="flex items-center gap-1 text-[12px] font-medium tracking-[0.06em] text-brand hover:underline hover:underline-offset-4">
+                  Explore all locations <Icon name="arrow" />
+                </Link>
+              }
+            />
+            <div className="mt-10 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+              {cities.map((c) => (
+                <Link
+                  key={c.name}
+                  href={`/residences?region=${encodeURIComponent(c.name)}`}
+                  className="group relative flex h-80 flex-col justify-end overflow-hidden rounded-lg border border-border p-4"
+                >
+                  <Image
+                    src={c.image}
+                    alt={c.name}
+                    fill
+                    sizes="(min-width:1024px) 16vw, (min-width:768px) 33vw, 50vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-fg/90 via-fg/30 to-transparent" />
+                  <div className="relative text-bg">
+                    <span className="block text-[11px] font-semibold uppercase leading-[14px] tracking-widest text-[#ffb59d]">
+                      {c.tag}
+                    </span>
+                    <h3 className="headline-sm">{c.name}</h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ============ 6. LAND & TITLED PLOTS ============ */}
+        <section className="border-b border-border bg-surface py-[4.5rem]">
+          <div className="container-x">
+            <SectionHead
+              eyebrow="Titled land"
+              title="Verified land & titled plots"
+              body="No Omo-Onile interference. Every plot is checked against state gazettes, acquisition exclusions and active beacon numbers."
+              aside={
+                <Link href="/residences" className="btn btn-secondary !px-5 !py-2.5">
+                  Search all land <Icon name="arrow" />
+                </Link>
+              }
+            />
+            <div className="mt-10 grid grid-cols-1 gap-10 md:grid-cols-3">
+              {plots.map((p) => (
+                <article key={p.name} className="flex flex-col justify-between rounded-lg border border-border bg-bg p-3">
+                  <div className="relative mb-3 h-56 overflow-hidden rounded">
+                    <Image src={p.image} alt={p.name} fill sizes="(min-width:768px) 33vw, 100vw" className="object-cover" />
+                    <span className="badge absolute left-3 top-3">{p.badge}</span>
+                  </div>
+                  <div className="flex flex-grow flex-col gap-1.5">
+                    <div className="flex items-baseline justify-between">
+                      <span className="price-display text-brand">{p.price}</span>
+                      <span className="eyebrow">{p.size}</span>
+                    </div>
+                    <h3 className="headline-sm">{p.name}</h3>
+                    <dl className="space-y-1.5 border-y border-border py-1.5 text-[13px] leading-5 text-fg-muted">
+                      {p.rows.map(([k, v]) => (
+                        <div key={k} className="flex justify-between gap-4">
+                          <dt>{k}</dt>
+                          <dd className={`text-right ${k === "Title" ? "font-semibold text-fg" : "text-fg"}`}>{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                  <div className="flex items-center justify-between pt-3">
+                    <span className="text-xs text-fg-muted">{p.area}</span>
+                    <span className="flex items-center gap-1 text-[12px] font-semibold tracking-[0.06em] text-brand">
+                      Survey dossier <Icon name="arrow" className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ============ 7. AGENTS (real data) ============ */}
+        <section className="border-b border-border py-[4.5rem]">
+          <div className="container-x">
+            <SectionHead
+              eyebrow="On-ground representation"
+              title="Vetted neighbourhood partners"
+              body="Every Haven partner has passed our background clearance and holds an active licence. No gatekeeping fees."
+              aside={
+                <Link href="/agents" className="link-editorial text-[12px] font-medium tracking-[0.06em]">
+                  Meet all agents
+                </Link>
+              }
+            />
+            <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {agents.slice(0, 4).map((a) => {
+                const count = residences.filter((r) => r.agentSlug === a.slug).length;
+                const wa = a.phone.replace(/\D/g, ""); // WhatsApp links need digits only
+                return (
+                  <div key={a.slug} className="flex flex-col justify-between rounded-lg border border-border bg-surface p-3">
+                    <Link href={`/agents/${a.slug}`} className="group flex items-center gap-3">
+                      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-border bg-sand font-display text-xl text-fg">
+                        {a.initials}
+                      </span>
+                      <div>
+                        <h3 className="headline-sm leading-tight transition-colors group-hover:text-brand">{a.name}</h3>
+                        <p className="text-[13px] leading-5 text-fg-muted">{a.role}, {a.basedIn}</p>
+                        <p className="pt-0.5 text-[12px] font-semibold tracking-[0.06em] text-brand">
+                          {count} active listing{count === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                    </Link>
+                    <a
+                      href={`https://wa.me/${wa}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary mt-5 w-full !py-2 text-[12px]"
+                    >
+                      <Icon name="chat" className="h-4 w-4 text-verified" />
+                      WhatsApp direct
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* ============ 8. TESTIMONIALS ============ */}
+        <section className="border-b border-border bg-surface py-[4.5rem]">
+          <div className="container-x">
+            <span className="eyebrow !text-brand tracking-widest">Client record</span>
+            <h2 className="headline-lg pb-10 pt-1">Client voices & diaspora experiences</h2>
+            <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
+              {testimonials.map((t, i) => (
+                <figure
+                  key={t.name}
+                  className={`flex flex-col justify-between py-5 md:py-0 ${
+                    i === 0 ? "md:pr-5" : i === testimonials.length - 1 ? "md:pl-5" : "md:px-5"
+                  }`}
+                >
+                  <blockquote className="headline-sm !font-normal leading-snug">“{t.quote}”</blockquote>
+                  <figcaption className="pt-5">
+                    <p className="text-[14px] font-semibold tracking-[0.04em]">{t.name}</p>
+                    <p className="text-[13px] leading-5 text-fg-muted">{t.role}</p>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ============ 9. SAFETY NOTICE ============ */}
+        <section className="border-b border-border bg-sand py-5">
+          <div className="container-x flex flex-col items-center justify-between gap-3 md:flex-row">
+            <div className="flex items-start gap-3 md:items-center">
+              <Icon name="shield" className="h-8 w-8 shrink-0 text-brand" />
+              <div>
+                <span className="eyebrow !font-bold !text-brand">Haven integrity shield</span>
+                <p className="font-medium text-fg-muted">
+                  Never pay inspection fees upfront or send money to a personal account before a
+                  property is physically verified. Report anything suspicious to our compliance desk.
+                </p>
+              </div>
+            </div>
+            <a href="#contact" className="btn shrink-0 border-brand !px-5 !py-2 text-[12px] text-brand hover:bg-brand hover:text-bg">
+              <Icon name="phone" className="h-4 w-4" />
+              Contact fraud desk
+            </a>
+          </div>
+        </section>
+
+        {/* ============ 10. LIST YOUR PROPERTY ============ */}
+        <section id="list-property" className="scroll-mt-20 bg-fg py-[4.5rem] text-bg">
+          <div className="container-x grid grid-cols-1 items-center gap-10 lg:grid-cols-12">
+            <div className="lg:col-span-8">
+              <span className="block text-[11px] font-semibold uppercase leading-[14px] tracking-widest text-[#ffb59d]">
+                For landlords & owners
               </span>
-              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-                A small studio
-                <br />
-                of advisors.
-              </h2>
+              <h2 className="headline-lg pt-2 text-bg">Own a property in Nigeria? List on Haven.</h2>
+              <p className="max-w-2xl pt-2 text-[18px] leading-7 text-bg/75">
+                Reach pre-qualified executive tenants, corporate expats and serious diaspora buyers.
+                We handle legal vetting, background screening and secure escrow.
+              </p>
+              <div className="grid grid-cols-2 gap-5 pt-10 sm:grid-cols-3">
+                {metrics.map((m, i) => (
+                  <div key={m.label} className={`border-l border-bg/25 pl-4 ${i === 2 ? "col-span-2 sm:col-span-1" : ""}`}>
+                    <span className="price-display text-[#ffb59d]">{m.n}</span>
+                    <p className="pt-0.5 text-[13px] leading-5 text-bg/70">{m.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <Link href="/agents" className="btn btn-secondary self-start md:self-auto">
-              Meet the team <span aria-hidden>→</span>
-            </Link>
-          </div>
-
-          <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {agents.slice(0, 3).map((a) => {
-              const count = residences.filter((r) => r.agentSlug === a.slug).length;
-              return <AgentCardCompact key={a.slug} a={a} listings={count} />;
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIALS */}
-      <section className="container-x py-24">
-        <div className="max-w-2xl">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-brand">
-            In confidence
-          </span>
-          <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-            A few words
-            <br />
-            from our clients.
-          </h2>
-        </div>
-
-        <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {testimonials.map((t) => (
-            <figure key={t.name} className="flex flex-col rounded-2xl border border-border bg-surface p-7 lift">
-              <svg viewBox="0 0 24 24" className="h-6 w-6 text-brand" fill="currentColor">
-                <path d="M7 11h3v6H4v-5a5 5 0 0 1 5-5V9a3 3 0 0 0-2 2zm10 0h3v6h-6v-5a5 5 0 0 1 5-5V9a3 3 0 0 0-2 2z" />
-              </svg>
-              <blockquote className="mt-4 flex-1 font-display text-xl leading-snug text-fg">
-                “{t.quote}”
-              </blockquote>
-              <figcaption className="mt-6 border-t border-border pt-4">
-                <div className="font-medium text-fg">{t.name}</div>
-                <div className="text-sm text-fg-muted">{t.role}</div>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </section>
-
-      {/* JOURNAL preview */}
-      <section className="container-x pb-24">
-        <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
-          <div className="max-w-2xl">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-brand">
-              From the journal
-            </span>
-            <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-              Field notes &
-              <br />
-              conversations.
-            </h2>
-          </div>
-          <Link href="/journal" className="btn btn-secondary self-start md:self-auto">
-            All articles <span aria-hidden>→</span>
-          </Link>
-        </div>
-
-        <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
-          {articles.map((a) => (
-            <Link key={a.slug} href={`/journal/${a.slug}`} className="group block lift">
-              <div className="photo relative aspect-[4/5] overflow-hidden rounded-2xl">
-                <Image
-                  src={a.cover}
-                  alt={a.title}
-                  fill
-                  sizes="(min-width:1024px) 25vw, 50vw"
-                  className="object-cover"
-                />
+            <div className="lg:col-span-4">
+              <div className="flex w-full flex-col gap-3 rounded-lg border border-bg/25 p-5">
+                <h3 className="headline-sm text-bg">Start your listing</h3>
+                <p className="text-[13px] leading-5 text-bg/70">
+                  Request an accredited surveyor to inspect and onboard your residential or
+                  commercial property.
+                </p>
+                <Link href="/list-property" className="btn btn-primary w-full !py-3.5">
+                  List your property today
+                </Link>
+                <span className="text-center text-[11px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-bg/60">
+                  Legal deed validation included
+                </span>
               </div>
-              <div className="mt-4 text-[11px] font-medium uppercase tracking-wider text-brand">
-                {a.department}
-              </div>
-              <h3 className="mt-2 font-display text-xl leading-tight text-fg group-hover:text-brand">
-                {a.title}
-              </h3>
-              <p className="mt-2 text-sm text-fg-muted">{a.dek}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="relative h-[60vh] min-h-[460px] w-full overflow-hidden">
-        <Image
-          src="/istockphoto-2.jpg"
-          alt="An evening at the water's edge"
-          fill
-          sizes="100vw"
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-black/20" />
-        <div className="container-x relative z-10 flex h-full flex-col justify-center text-white">
-          <div className="max-w-2xl">
-            <h2 className="font-display text-4xl leading-tight tracking-tight md:text-6xl">
-              Tell us how you&apos;d like to live.
-            </h2>
-            <p className="mt-5 max-w-lg text-lg text-white/85">
-              A short conversation in writing or in person. We respond within two
-              working days.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="#contact" className="btn bg-white text-fg hover:bg-brand-soft">
-                Book a viewing
-              </Link>
-              <Link href="/agents" className="btn border border-white/40 text-white hover:bg-white/10">
-                Speak to an agent
-              </Link>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
       <Footer />
     </>
   );
 }
 
-function Stat({ n, label }: { n: string; label: string }) {
+/* Section header: eyebrow + serif title + optional intro and right-side link */
+function SectionHead({
+  eyebrow,
+  title,
+  body,
+  aside,
+  divided = false,
+}: {
+  eyebrow: string;
+  title: string;
+  body?: string;
+  aside?: React.ReactNode;
+  divided?: boolean;
+}) {
   return (
-    <div>
-      <div className="font-display text-2xl tracking-tight text-fg md:text-3xl">{n}</div>
-      <div className="mt-1 text-[11px] uppercase tracking-wider text-fg-subtle md:text-xs">{label}</div>
-    </div>
-  );
-}
-
-function Pillar({ n, title, body }: { n: string; title: string; body: string }) {
-  return (
-    <div>
-      <div className="font-display text-2xl italic text-brand">{n}</div>
-      <h3 className="mt-2 font-medium text-fg">{title}</h3>
-      <p className="mt-1 text-sm text-fg-muted leading-relaxed">{body}</p>
+    <div
+      className={`flex flex-col justify-between gap-3 md:flex-row md:items-end ${
+        divided ? "border-b border-border pb-10" : ""
+      }`}
+    >
+      <div className="max-w-2xl">
+        <span className="eyebrow !text-brand tracking-widest">{eyebrow}</span>
+        <h2 className="headline-lg pt-1">{title}</h2>
+        {body && <p className="pt-2 text-fg-muted">{body}</p>}
+      </div>
+      {aside && <div className="shrink-0">{aside}</div>}
     </div>
   );
 }

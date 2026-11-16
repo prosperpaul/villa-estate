@@ -1,77 +1,62 @@
 import Link from "next/link";
 import Logo from "./Logo";
+import Icon from "./Icon";
+import MobileTabBar from "./MobileTabBar";
+
+// TODO: replace with the real WhatsApp business number (digits only, with country code)
+const WHATSAPP = "2348000000000";
 
 const cols = [
   {
-    title: "Residences",
+    title: "Portfolios",
     links: [
       { label: "All residences", href: "/residences" },
-      { label: "Côte d'Azur", href: "/residences" },
-      { label: "Mallorca", href: "/residences" },
-      { label: "Lake Como", href: "/residences" },
-      { label: "Marrakech", href: "/residences" },
+      { label: "Properties in Ikoyi", href: "/residences?region=Ikoyi" },
+      { label: "Lekki Phase 1 rentals", href: "/residences?region=Lekki" },
+      { label: "Maitama homes", href: "/residences?region=Maitama" },
+      { label: "Victoria Island suites", href: "/residences?region=Victoria%20Island" },
+      { label: "Saved residences", href: "/saved" },
     ],
   },
   {
-    title: "Practice",
+    title: "Trust & verification",
     links: [
-      { label: "About Vila Estate", href: "#about" },
+      { label: "About Haven", href: "/about" },
       { label: "Our agents", href: "/agents" },
-      { label: "Journal", href: "/journal" },
-      { label: "Press", href: "#" },
-      { label: "Careers", href: "#" },
-    ],
-  },
-  {
-    title: "Services",
-    links: [
-      { label: "Acquisitions", href: "#" },
-      { label: "Stewardship", href: "#" },
-      { label: "Mortgage advisory", href: "#" },
-      { label: "Estate planning", href: "#" },
+      { label: "The Haven journal", href: "/journal" },
+      { label: "Diaspora buying guide", href: "/journal" },
+      { label: "Fraud & impersonation warning", href: "/#list-property" },
     ],
   },
 ];
 
 export default function Footer() {
   return (
-    <footer id="contact" className="mt-32 border-t border-border bg-surface-2">
-      <div className="container-x py-20">
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-12">
-          <div className="md:col-span-5">
+    <footer id="contact" className="scroll-mt-20 border-t border-border bg-surface pb-28 pt-[4.5rem] lg:pb-10">
+      <div className="container-x">
+        <div className="grid grid-cols-1 gap-10 border-b border-border pb-10 md:grid-cols-2 lg:grid-cols-4">
+          {/* Brand + offices */}
+          <div className="flex flex-col gap-3">
             <Logo />
-            <p className="mt-6 max-w-sm text-[15px] leading-relaxed text-fg-muted">
-              Vila Estate represents architect-designed villas across the Mediterranean,
-              Morocco and the British Isles. Quiet acquisitions, considered stewardship.
+            <p className="text-[13px] leading-5 text-fg-muted">
+              A verified property platform for premier Nigerian real estate. Legal certainty for
+              buyers, renters and the diaspora.
             </p>
-
-            <div className="mt-10 max-w-md">
-              <div className="text-[11px] font-medium uppercase tracking-wider text-fg-subtle">
-                Receive new listings
-              </div>
-              <form className="mt-3 flex items-center gap-2">
-                <input
-                  type="email"
-                  placeholder="your@email.com"
-                  className="input rounded-full"
-                />
-                <button className="btn btn-primary">Subscribe</button>
-              </form>
-              <p className="mt-3 text-xs text-fg-subtle">
-                A short letter, four times a year. Unsubscribe anytime.
-              </p>
+            <div className="pt-1.5 text-[13px] leading-5 text-fg-muted">
+              <p className="eyebrow pb-1">Offices</p>
+              <p>Ikoyi, Lagos</p>
+              <p>Maitama, Abuja</p>
             </div>
           </div>
 
+          {/* Link columns */}
           {cols.map((c) => (
-            <div key={c.title} className="md:col-span-2">
-              <div className="text-[11px] font-medium uppercase tracking-wider text-fg-subtle">
-                {c.title}
-              </div>
-              <ul className="mt-5 space-y-3 text-[15px]">
+            <div key={c.title} className="flex flex-col gap-3">
+              <h3 className="text-[14px] font-semibold uppercase leading-5 tracking-[0.04em] text-fg">{c.title}</h3>
+              <ul className="flex flex-col gap-1.5 text-fg-muted">
                 {c.links.map((l) => (
                   <li key={l.label}>
-                    <Link href={l.href} className="text-fg-muted hover:text-fg">
+                    <Link href={l.href} className="transition-colors hover:text-brand">
                       {l.label}
                     </Link>
                   </li>
@@ -80,44 +65,47 @@ export default function Footer() {
             </div>
           ))}
 
-          <div className="md:col-span-1">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-fg-subtle">
-              Offices
+          {/* Concierge + newsletter */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-[14px] font-semibold uppercase leading-5 tracking-[0.04em] text-fg">Direct concierge</h3>
+            <p className="text-[13px] leading-5 text-fg-muted">
+              Speak to an accredited partner on our private advisory line.
+            </p>
+            <a
+              href={`https://wa.me/${WHATSAPP}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary w-fit !px-4 !py-2.5 text-[12px]"
+            >
+              <Icon name="chat" className="h-4 w-4 text-verified" />
+              WhatsApp private desk
+            </a>
+
+            <div className="flex flex-col gap-1.5 pt-1.5">
+              <span className="eyebrow">The Haven Gazette</span>
+              <p className="text-[13px] leading-5 text-fg-muted">
+                A monthly letter on Nigerian property, yields and architecture.
+              </p>
+              <form className="flex items-center gap-2">
+                <label htmlFor="footer-email" className="sr-only">Email address</label>
+                <input id="footer-email" type="email" placeholder="Your email address" className="input !py-2 text-[13px]" />
+                <button type="submit" className="btn btn-primary shrink-0 !px-4 !py-2 text-[12px]">Join</button>
+              </form>
             </div>
-            <ul className="mt-5 space-y-3 text-[15px] text-fg-muted">
-              <li>Antibes</li>
-              <li>London</li>
-              <li>Milan</li>
-              <li>Marrakech</li>
-            </ul>
           </div>
         </div>
 
-        <div className="mt-16 flex flex-col items-start justify-between gap-4 border-t border-border pt-6 text-sm text-fg-subtle md:flex-row md:items-center">
-          <div>© {new Date().getFullYear()} Vila Estate. All rights reserved.</div>
-          <div className="flex gap-6">
-            <Link href="#" className="hover:text-fg">Privacy</Link>
-            <Link href="#" className="hover:text-fg">Terms</Link>
-            <Link href="#" className="hover:text-fg">Cookies</Link>
-            <Link href="#" className="hover:text-fg">Sitemap</Link>
-          </div>
-          <div className="flex gap-4">
-            <Social label="Instagram" path="M3 7.5A4.5 4.5 0 0 1 7.5 3h9A4.5 4.5 0 0 1 21 7.5v9a4.5 4.5 0 0 1-4.5 4.5h-9A4.5 4.5 0 0 1 3 16.5z M12 8.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7z M17.2 6.3v.01" />
-            <Social label="LinkedIn" path="M4 4h4v16H4zM6 2v.01M10 8h4v2a3 3 0 1 1 6 0v10h-4v-9a1.5 1.5 0 0 0-3 0v9h-3z" />
-            <Social label="Pinterest" path="M9 21l3-9M8 9a4 4 0 1 1 7.5 2c-.4 1.2-2 2.5-3.5 2.5" />
+        <div className="flex flex-col items-center justify-between gap-3 pt-5 text-[13px] leading-5 text-fg-muted md:flex-row">
+          <p>© {new Date().getFullYear()} Haven Properties Limited. All rights reserved.</p>
+          <div className="flex items-center gap-5 text-[11px] font-semibold uppercase tracking-[0.08em]">
+            <Link href="#" className="transition-colors hover:text-brand">Privacy</Link>
+            <Link href="#" className="transition-colors hover:text-brand">Terms</Link>
+            <Link href="#" className="transition-colors hover:text-brand">Regulatory filings</Link>
           </div>
         </div>
       </div>
+      {/* Phones: fixed bottom navigation (the extra pb-28 above keeps it off the content) */}
+      <MobileTabBar />
     </footer>
-  );
-}
-
-function Social({ label, path }: { label: string; path: string }) {
-  return (
-    <a href="#" aria-label={label} className="text-fg-subtle hover:text-fg">
-      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <path d={path} />
-      </svg>
-    </a>
   );
 }

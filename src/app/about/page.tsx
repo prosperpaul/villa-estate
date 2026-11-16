@@ -13,7 +13,7 @@ export default function AboutPage() {
   return (
     <>
       <Nav />
-      <main className="pt-[72px]">
+      <main className="pt-20">
         {/* HERO */}
         <section className="border-b border-border bg-surface-2">
           <div className="container-x py-16 md:py-24">

@@ -14,7 +14,7 @@ export default function SavedClient({ residences }: { residences: Residence[] })
   return (
     <>
       <Nav />
-      <main className="pt-[72px]">
+      <main className="pt-20">
         <section className="border-b border-border bg-surface-2">
           <div className="container-x py-16 md:py-20">
             <span className="text-[11px] font-medium uppercase tracking-wider text-brand">

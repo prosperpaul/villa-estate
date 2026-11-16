@@ -11,6 +11,10 @@ export type Agent = {
   initials: string;
   email: string;
   phone: string;
+  /** Optional portrait, e.g. "/agents/lea.jpg". Initials are shown when missing. */
+  photo?: string;
+  /** Optional licence/accreditation, e.g. "LASRERA verified". Only shown when set, so it's never invented. */
+  accreditation?: string;
 };
 
 export const agents: Agent[] = [

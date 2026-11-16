@@ -18,13 +18,15 @@ export default function AdminResidencesClient({
   agents: Agent[];
 }) {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"All" | "Available" | "Reserved" | "In Confidence" | "Sold">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Pending" | "Available" | "Reserved" | "In Confidence" | "Sold">("All");
   const [sort, setSort] = useState<"newest" | "price-desc" | "price-asc">("newest");
   const [selected, setSelected] = useState<string[]>([]);
 
   const results = useMemo(() => {
     let r = residences.filter((x) => {
-      if (statusFilter !== "All" && x.status !== statusFilter) return false;
+      // "Pending" = unpublished landlord drafts awaiting review
+      if (statusFilter === "Pending") { if (x.published !== false) return false; }
+      else if (statusFilter !== "All" && x.status !== statusFilter) return false;
       if (query && !`${x.name} ${x.location.town} ${x.architect.name}`.toLowerCase().includes(query.toLowerCase())) return false;
       return true;
     });
@@ -32,6 +34,8 @@ export default function AdminResidencesClient({
     if (sort === "price-desc") r = [...r].sort((a, b) => b.price - a.price);
     return r;
   }, [query, statusFilter, sort, residences]);
+
+  const pendingCount = residences.filter((r) => r.published === false).length;
 
   const toggle = (slug: string) =>
     setSelected((s) => (s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug]));
@@ -61,7 +65,7 @@ export default function AdminResidencesClient({
         </label>
 
         <div className="flex items-center gap-1 rounded-lg border border-border bg-bg p-1 text-sm">
-          {(["All", "Available", "Reserved", "In Confidence", "Sold"] as const).map((s) => (
+          {(["All", "Pending", "Available", "Reserved", "In Confidence", "Sold"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -70,6 +74,7 @@ export default function AdminResidencesClient({
               }`}
             >
               {s}
+              {s === "Pending" && pendingCount > 0 && <span className="ml-1 rounded-full bg-amber-500 px-1.5 text-[10px] text-white">{pendingCount}</span>}
             </button>
           ))}
         </div>
@@ -149,8 +154,14 @@ export default function AdminResidencesClient({
                   <td className="px-4 py-3 text-fg-muted">{r.architect.name}</td>
                   <td className="px-4 py-3 text-right tnum">{r.beds} · {r.baths}</td>
                   <td className="px-4 py-3 text-right tnum">{formatArea(r.interiorArea)}</td>
-                  <td className="px-4 py-3 text-right font-medium tnum">{formatPrice(r.price, r.currency)}</td>
-                  <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
+                  <td className="px-4 py-3 text-right font-medium tnum">{formatPrice(r.price, r.currency)}{r.listing === "rent" ? " / yr" : ""}</td>
+                  <td className="px-4 py-3">
+                    {r.published === false ? (
+                      <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">Pending review</span>
+                    ) : (
+                      <StatusBadge status={r.status} />
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-fg-muted">{agent?.name.split(" ")[0]}</td>
                   <td className="px-4 py-3 text-right">
                     <RowMenu slug={r.slug} />

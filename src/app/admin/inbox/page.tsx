@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/mongo";
-import { listResidences } from "@/lib/residences";
+import { listAllResidences } from "@/lib/residences";
 import InboxClient, { type Msg } from "./InboxClient";
 
 /**
@@ -13,7 +13,7 @@ export default async function AdminInboxPage() {
   const db = await getDb();
   const [docs, residences] = await Promise.all([
     db.collection("inbox").find({}).sort({ createdAt: -1 }).toArray(),
-    listResidences(),
+    listAllResidences(),
   ]);
 
   // Reshape MongoDB documents into the shape the UI expects.

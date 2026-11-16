@@ -1,6 +1,23 @@
 import { getDb } from "./mongo";
+import type { ResidenceType } from "./listing";
 
-export type Currency = "EUR" | "USD" | "GBP";
+export type Currency = "EUR" | "USD" | "GBP" | "NGN";
+
+/** One row of the title audit, e.g. "Certificate of Occupancy" / "File ABJ-MT-4029" / "Lands Registry, Alausa" / "Verified" */
+export type TitleDocument = { name: string; detail?: string; authority?: string; status: string };
+/** A due-diligence question with the legal desk's answer */
+export type Faq = { q: string; a: string };
+/** A nearby landmark, the drive time, and an optional note like "8.4 km via expressway" */
+export type Nearby = { place: string; minutes: number; note?: string };
+/** A technical ledger row, e.g. "Topography" / "100% dry tableland" / "14m above sea level" */
+export type LedgerRow = { label: string; value: string; note?: string };
+/** A vendor payment option, e.g. 12 months: 10M deposit, 3.33M/mo, 50M total */
+export type PaymentPlan = { tenor: string; deposit: number; monthly?: number; total: number; handover?: string };
+/** A one-off statutory or conveyance fee */
+export type Fee = { label: string; amount: number; note?: string };
+
+// Re-exported so server code can keep importing from here
+export { RESIDENCE_TYPES, isLand } from "./listing";
 
 export type Residence = {
   slug: string;
@@ -21,12 +38,46 @@ export type Residence = {
   plotArea: number;
   pool: boolean;
   tenure: "Freehold" | "Leasehold";
-  type: "Villa" | "Estate" | "Pavilion" | "Retreat" | "Townhouse" | "Compound";
+  type: ResidenceType;
   cover: string;
   gallery: string[];
   features: string[];
   agentSlug: string;
+
+  /* Optional dossier extras. Each section on the detail page only
+     appears when its field has content, so older listings are unaffected. */
+  titleDocs?: TitleDocument[];
+  videoUrl?: string; // YouTube, Vimeo, or a direct .mp4 link
+  faqs?: Faq[];
+  nearby?: Nearby[];
+  ledger?: LedgerRow[]; // technical matrix; replaces the default spec grid when filled
+  paymentPlans?: PaymentPlan[];
+  fees?: Fee[];
+
+  /* Sale vs rent. Missing means "sale", so every existing listing stays a sale. */
+  listing?: "sale" | "rent";
+  /** Rent extras, all in the listing currency. `price` holds the annual rent. */
+  rent?: RentTerms;
+
+  /* Landlord submissions arrive as hidden drafts for staff to review.
+     Missing `published` means published, so existing listings stay visible. */
+  published?: boolean;
+  review?: {
+    state: "pending" | "approved";
+    submittedAt: string;
+    landlord: LandlordContact;
+    photoLinks?: string[]; // landlord-supplied links, for staff only, never rendered publicly
+  };
 };
+
+export type RentTerms = {
+  serviceCharge: number; // per year
+  caution: number; // refundable deposit
+  legal: number; // tenancy agreement fee
+  agency: number; // agency commission
+  upfrontYears: 1 | 2; // how many years' rent is due upfront
+};
+export type LandlordContact = { name: string; email: string; phone: string; company?: string };
 
 /**
  * Seed data — used ONLY by /api/seed-residences to populate MongoDB on first
@@ -264,14 +315,34 @@ export const seedResidences: Residence[] = [
 ];
 
 /** All residences from MongoDB, newest first by issueNumber. */
+// Public pages only ever see published listings. `$ne: false` also matches
+// older documents that have no `published` field at all.
+const PUBLIC = { published: { $ne: false } };
+
+/** Published residences, for the public site. */
 export async function listResidences(): Promise<Residence[]> {
+  const db = await getDb();
+  const docs = await db.collection("residences").find(PUBLIC).toArray();
+  return docs.map(stripMongoId);
+}
+
+/** Single published residence by slug, or null (drafts return null too). */
+export async function getResidence(slug: string): Promise<Residence | null> {
+  const db = await getDb();
+  const doc = await db.collection("residences").findOne({ slug, ...PUBLIC });
+  if (!doc) return null;
+  return stripMongoId(doc);
+}
+
+/** ADMIN ONLY: every residence including unpublished landlord drafts. */
+export async function listAllResidences(): Promise<Residence[]> {
   const db = await getDb();
   const docs = await db.collection("residences").find({}).toArray();
   return docs.map(stripMongoId);
 }
 
-/** Single residence by slug, or null if not found. */
-export async function getResidence(slug: string): Promise<Residence | null> {
+/** ADMIN ONLY: a residence by slug even if it's an unpublished draft. */
+export async function getAnyResidence(slug: string): Promise<Residence | null> {
   const db = await getDb();
   const doc = await db.collection("residences").findOne({ slug });
   if (!doc) return null;
